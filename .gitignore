@@ -1,0 +1,109 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Aa]rtifacts/
+[Oo]ut/
+[Pp]ublish/
+
+# IDE and editor state
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+*.DotSettings.user
+
+# Test, coverage, and benchmark output
+[Tt]est[Rr]esults/
+[Cc]overage/
+[Bb]enchmark[Dd]ot[Nn]et.[Aa]rtifacts/
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+coverage*.lcov
+
+# Logs, diagnostics, and process artifacts
+[Ll]ogs/
+*.log
+*.dmp
+*.stackdump
+*.pid
+
+# Local application state
+[Dd]ata/
+[Cc]ache/
+[Bb]ackups/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Environment-specific .NET configuration. Keep appsettings.json as the
+# committed skeleton; use appsettings.Example.json for other safe templates.
+appsettings.*.json
+!appsettings.Example.json
+!appsettings.Sample.json
+!appsettings.Template.json
+
+# ASP.NET launch and publishing profiles may contain machine paths or secrets.
+**/Properties/launchSettings.json
+**/Properties/PublishProfiles/
+
+# Environment and secret files. Safe templates remain commit-able.
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+secrets.json
+*.secrets.json
+credentials.json
+*.credentials.json
+service-account*.json
+
+# Private keys, certificates, signing material, and token stores
+*.key
+*.pem
+*.pfx
+*.p12
+*.jks
+*.keystore
+*.snk
+*.mobileprovision
+*.token
+
+# Package-manager and cloud credentials
+.npmrc
+.yarnrc
+.pypirc
+pip.conf
+NuGet.Config
+nuget.config
+.aws/
+.azure/
+.config/gcloud/
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Local tool and operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# Restore/package caches
+packages/
+node_modules/
+.nuget/
+.packages/

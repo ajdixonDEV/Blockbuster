@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-Blockbuster-d9da7320-6884-4c6b-b501-b6210b6a8e67</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Blockbuster.Core\Blockbuster.Core.csproj" />
+    <ProjectReference Include="..\Blockbuster.Infrastructure\Blockbuster.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

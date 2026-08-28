@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Blockbuster.Core/Blockbuster.Core.csproj" />
+  <Project Path="Blockbuster.Infrastructure/Blockbuster.Infrastructure.csproj" />
+  <Project Path="Blockbuster.Tests/Blockbuster.Tests.csproj" />
+  <Project Path="Blockbuster/Blockbuster.csproj" />
+</Solution>

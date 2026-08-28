@@ -1,0 +1,24 @@
+@page "/movies"
+@page "/tv"
+@page "/videos"
+@page "/music"
+@inject NavigationManager Navigation
+
+<PageTitle>@Title</PageTitle>
+
+<section class="empty-state">
+    <p class="eyebrow">Catalog</p>
+    <h1>@Title</h1>
+    <p>@Title ingestion is not configured yet.</p>
+</section>
+
+@code {
+    private string Title => new Uri(Navigation.Uri).AbsolutePath.Trim('/').ToLowerInvariant() switch
+    {
+        "movies" => "Movies",
+        "tv" => "TV",
+        "videos" => "Videos",
+        "music" => "Music",
+        _ => "Catalog"
+    };
+}
