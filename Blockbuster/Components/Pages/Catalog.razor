@@ -3,6 +3,7 @@
 @page "/videos"
 @page "/music"
 @attribute [Authorize]
+@implements IDisposable
 @inject NavigationManager Navigation
 
 <PageTitle>@Title · Blockbuster</PageTitle>
@@ -41,7 +42,33 @@
 </section>
 
 @code {
-    private string Slug => new Uri(Navigation.Uri).AbsolutePath.Trim('/').ToLowerInvariant();
+    private string slug = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        slug = GetSlug(Navigation.Uri);
+        Navigation.LocationChanged += HandleLocationChanged;
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        var nextSlug = GetSlug(args.Location);
+        if (nextSlug == slug || nextSlug is not ("movies" or "tv" or "videos" or "music"))
+        {
+            return;
+        }
+
+        slug = nextSlug;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= HandleLocationChanged;
+    }
+
+    private static string GetSlug(string location) => new Uri(location).AbsolutePath.Trim('/').ToLowerInvariant();
+    private string Slug => slug;
     private bool IsMovies => Slug == "movies";
     private string Title => Slug switch { "movies" => "Movies", "tv" => "TV", "videos" => "Videos", "music" => "Music", _ => "Catalog" };
     private string Description => IsMovies ? "Every piece of media we own, all in one place." : $"A home for your {Title.ToLowerInvariant()} collection.";

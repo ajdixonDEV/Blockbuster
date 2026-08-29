@@ -28,7 +28,7 @@ dotnet run --project .\Blockbuster --no-launch-profile
 ```
 
 Use deployment-local JSON, environment variables, user secrets, or service
-configuration for machine paths and secrets. Do not commit them. Storage path
+configuration for machine paths and secrets. Storage path
 overrides such as `Storage__LogsPath` must be absolute; when omitted, generated
 state remains beneath `Storage__DataRoot`.
 
