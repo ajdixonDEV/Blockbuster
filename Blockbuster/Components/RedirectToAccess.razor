@@ -1,0 +1,10 @@
+@inject NavigationManager Navigation
+
+@code {
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+        var path = new Uri(Navigation.Uri).AbsolutePath;
+        Navigation.NavigateTo(path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase) ? "/admin/login" : "/profiles", forceLoad: true);
+    }
+}

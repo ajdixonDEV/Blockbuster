@@ -29,7 +29,7 @@ public sealed class PersistenceFoundationTests
             Assert.Equal("wal", await ScalarAsync(connection, "PRAGMA journal_mode;", cancellationToken));
             Assert.Equal("1", await ScalarAsync(connection, "PRAGMA foreign_keys;", cancellationToken));
             Assert.Equal("5000", await ScalarAsync(connection, "PRAGMA busy_timeout;", cancellationToken));
-            Assert.Equal("1", await ScalarAsync(connection, "SELECT COUNT(*) FROM SchemaVersions;", cancellationToken));
+            Assert.Equal("2", await ScalarAsync(connection, "SELECT COUNT(*) FROM SchemaVersions;", cancellationToken));
             Assert.Equal("1", await ScalarAsync(connection, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='system_state';", cancellationToken));
         }
         finally

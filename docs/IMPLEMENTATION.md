@@ -17,7 +17,7 @@ This file is the short handoff for future implementation conversations. The deta
 - [x] 04 — SQLite connection factory and DbUp migration runner
 - [x] 05 — Data-protection persistence and health checks
 - [x] 06 — Windows Service/systemd hosting and operator documentation
-- [ ] 07 — Profiles and administrator foundation
+- [x] 07 — Profiles and administrator foundation
 - [ ] 08 — Shared media primitives and movie scanning
 - [ ] 09 — Movie catalog and direct playback
 - [ ] 10 — Shared movie rooms
@@ -64,11 +64,28 @@ This file is the short handoff for future implementation conversations. The deta
 
 ## Next milestone
 
-Milestone 07 should implement the migration-backed administrator credential and
-profiles, bootstrap and local reset behavior, independent signed session cookies,
-profile selection guards, and focused browser administration for profile CRUD.
-It should also surface the existing health/configuration summaries behind the
-administrator boundary.
+Milestone 08 should add shared media-file persistence and contracts, ffprobe,
+safe movie-root reconciliation, filename parsing, TMDB matching/review, artwork
+caching, scheduled/manual scans, and scan status administration.
+
+## Completed in milestone 07
+
+- Added migration-backed profiles and a singleton administrator credential with
+  repository contracts in Core and Dapper implementations in Infrastructure.
+- Added exactly-four-digit PIN validation and PBKDF2-SHA256 hashing with random
+  salts and fixed-time verification. Leading zeroes remain significant.
+- Bootstrap the first administrator credential from deployment configuration,
+  ignore that secret once a credential exists, and activated the server-local,
+  non-echoed administrator PIN reset command.
+- Added independent encrypted, HTTP-only profile and administrator cookies.
+  Profile selection is session-only; the administrator cookie uses the configured
+  lifetime and never derives authority from a viewing profile.
+- Guarded all catalog routes behind profile selection and added profile selection,
+  administrator sign-in/sign-out, and administrator-only profile CRUD.
+- Added administrator health and read-only configuration summaries. Host settings
+  remain file-managed.
+- Clearly label all PINs as unthrottled convenience barriers suitable only for a
+  trusted LAN or VPN.
 
 ## Completed in milestone 04
 

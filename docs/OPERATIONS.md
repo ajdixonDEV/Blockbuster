@@ -130,6 +130,11 @@ for Blazor Interactive Server. Use the proxy's actual source address in
 
 ## Health and local operator commands
 
+The first startup requires `Authentication__BootstrapPin` to contain exactly four
+digits. It initializes the administrator credential once; after that, the stored
+hash is authoritative and the bootstrap value is ignored. Remove the deployment
+secret after successful initialization.
+
 - `/health/live` reports process liveness.
 - `/health/ready` checks SQLite, writable state directories, ffprobe, media roots,
   and TMDB configuration.
@@ -153,5 +158,5 @@ dotnet Blockbuster.dll operator admin-pin reset
 ```
 
 Its interactive prompt refuses redirected input so a PIN cannot be supplied on
-the command line. The command becomes operational when milestone 07 introduces
-the administrator credential store; until then it exits without prompting.
+the command line. The reset replaces the stored hash and is the only supported
+administrator recovery path.

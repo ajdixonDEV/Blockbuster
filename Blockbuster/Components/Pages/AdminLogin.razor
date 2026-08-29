@@ -1,0 +1,17 @@
+@page "/admin/login"
+@attribute [AllowAnonymous]
+
+<PageTitle>Administrator sign in · Blockbuster</PageTitle>
+<section class="access-page narrow">
+    <span class="section-kicker">Trusted network administration</span>
+    <h1>Administrator</h1>
+    <p class="access-note">This four-digit PIN is weak protection intended only for a trusted LAN or VPN. Attempts are not throttled.</p>
+    @if (!string.IsNullOrWhiteSpace(Error)) { <p class="form-error" role="alert">@Error</p> }
+    <form method="post" action="/auth/admin/login" class="admin-login-form">
+        <label for="admin-pin">Administrator PIN</label>
+        <input id="admin-pin" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" required autofocus />
+        <button type="submit">Sign in</button>
+    </form>
+</section>
+
+@code { [SupplyParameterFromQuery] public string? Error { get; set; } }

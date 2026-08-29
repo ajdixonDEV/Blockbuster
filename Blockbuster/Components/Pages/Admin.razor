@@ -1,0 +1,66 @@
+@page "/admin"
+@attribute [Authorize(Policy = "Administrator")]
+@inject IProfileStore Profiles
+@inject Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckService HealthChecks
+@inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.StorageOptions> Storage
+@inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.LibrariesOptions> Libraries
+@inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.ScanningOptions> Scanning
+@inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.MediaProbeOptions> Probe
+@inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.TmdbOptions> Tmdb
+
+<PageTitle>Administration · Blockbuster</PageTitle>
+<section class="admin-page">
+    <div class="catalog-heading"><div><span class="section-kicker">Trusted network only</span><h1>Administration</h1><p>Profiles, health, and file-managed configuration.</p></div><form method="post" action="/auth/admin/logout"><button type="submit">Sign out</button></form></div>
+    <p class="access-note warning">The administrator PIN is an unthrottled convenience barrier, not public-internet security. Recovery is available only through the server-local reset command.</p>
+    @if (!string.IsNullOrWhiteSpace(Error)) { <p class="form-error" role="alert">@Error</p> }
+
+    <div class="admin-grid">
+        <section class="admin-panel">
+            <h2>Profiles</h2>
+            <form method="post" action="/admin/profiles/create" class="compact-form">
+                <input name="name" maxlength="40" placeholder="Profile name" required />
+                <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" placeholder="Optional 4-digit PIN" />
+                <button type="submit">Create profile</button>
+            </form>
+            @foreach (var profile in profiles)
+            {
+                <div class="profile-admin-row">
+                    <form method="post" action="/admin/profiles/update" class="compact-form">
+                        <input type="hidden" name="id" value="@profile.Id" />
+                        <input name="name" maxlength="40" value="@profile.Name" required aria-label="Profile name" />
+                        <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" placeholder="Replace PIN" aria-label="Replacement PIN" />
+                        <label><input type="checkbox" name="clearPin" /> Clear PIN</label>
+                        <button type="submit">Save</button>
+                    </form>
+                    <form method="post" action="/admin/profiles/delete"><input type="hidden" name="id" value="@profile.Id" /><button class="danger" type="submit">Delete</button></form>
+                </div>
+            }
+        </section>
+        <section class="admin-panel">
+            <h2>Health</h2>
+            @foreach (var check in health)
+            { <div class="summary-row"><span>@check.Key</span><strong class="status-@check.Value.ToString().ToLowerInvariant()">@check.Value</strong></div> }
+        </section>
+        <section class="admin-panel">
+            <h2>Configuration</h2>
+            <div class="summary-row"><span>Data root</span><code>@Storage.Value.DataRoot</code></div>
+            <div class="summary-row"><span>Libraries</span><strong>@Libraries.Value.Sources.Count</strong></div>
+            <div class="summary-row"><span>Scan interval</span><strong>@Scanning.Value.Interval</strong></div>
+            <div class="summary-row"><span>ffprobe</span><code>@Probe.Value.ExecutablePath</code></div>
+            <div class="summary-row"><span>TMDB</span><strong>@(string.IsNullOrWhiteSpace(Tmdb.Value.Token) ? "Not configured" : "Configured")</strong></div>
+            <p class="access-note">Host paths and operational settings are managed in configuration files or environment variables and cannot be edited here.</p>
+        </section>
+    </div>
+</section>
+
+@code {
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+    private IReadOnlyList<Profile> profiles = [];
+    private Dictionary<string, Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus> health = [];
+    protected override async Task OnInitializedAsync()
+    {
+        profiles = await Profiles.ListAsync();
+        var report = await HealthChecks.CheckHealthAsync(registration => registration.Tags.Contains("ready"));
+        health = report.Entries.ToDictionary(x => x.Key, x => x.Value.Status);
+    }
+}

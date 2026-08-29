@@ -6,6 +6,9 @@ using Blockbuster.Infrastructure.Persistence;
 using Blockbuster.Infrastructure.Security;
 using Blockbuster.Infrastructure.Operations;
 using Microsoft.AspNetCore.DataProtection;
+using Blockbuster.Core.Profiles;
+using Blockbuster.Core.Security;
+using Blockbuster.Infrastructure.Profiles;
 
 namespace Blockbuster.Infrastructure.Configuration;
 
@@ -31,9 +34,14 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDatabaseBackupService, SqliteDatabaseBackupService>();
         services.AddSingleton<ISecretPinReader, ConsoleSecretPinReader>();
         services.AddSingleton<OperatorCommandDispatcher>();
+        services.AddSingleton<IProfileStore, ProfileStore>();
+        services.AddSingleton<IAdministratorCredentialStore, AdministratorCredentialStore>();
+        services.AddSingleton<IPinHasher, PinHasher>();
+        services.AddSingleton<IAdministratorPinResetService, AdministratorPinService>();
         services.AddSingleton<DatabaseMigrator>();
         services.AddSingleton<IDatabaseMigrator>(provider => provider.GetRequiredService<DatabaseMigrator>());
         services.AddHostedService(provider => provider.GetRequiredService<DatabaseMigrator>());
+        services.AddHostedService<AdministratorBootstrapService>();
 
         services.AddDataProtection().SetApplicationName("Blockbuster");
         services.ConfigureOptions<DataProtectionOptionsSetup>();

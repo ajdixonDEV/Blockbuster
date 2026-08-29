@@ -18,10 +18,11 @@
             <BbBadge Variant="BadgeVariant.Outline" Class="server-badge">
                 <span class="online-dot"></span>Server online
             </BbBadge>
-            <BbButton Variant="ButtonVariant.Ghost" Disabled="true" Class="profile-button">
-                <BbAvatar Size="AvatarSize.Small"><BbAvatarFallback>?</BbAvatarFallback></BbAvatar>
-                Choose profile
-            </BbButton>
+            <AuthorizeView>
+                <Authorized Context="profileState"><a class="profile-link" href="/profiles"><BbAvatar Size="AvatarSize.Small"><BbAvatarFallback>@profileState.User.Identity?.Name?[0]</BbAvatarFallback></BbAvatar>@profileState.User.Identity?.Name</a></Authorized>
+                <NotAuthorized><a class="profile-link" href="/profiles"><BbAvatar Size="AvatarSize.Small"><BbAvatarFallback>?</BbAvatarFallback></BbAvatar>Choose profile</a></NotAuthorized>
+            </AuthorizeView>
+            <a class="admin-link" href="/admin" aria-label="Administration"><LucideIcon Name="settings" Size="17" /></a>
         </div>
     </header>
 
