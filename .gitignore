@@ -46,6 +46,8 @@ coverage*.lcov
 # Environment-specific .NET configuration. Keep appsettings.json as the
 # committed skeleton; use appsettings.Example.json for other safe templates.
 appsettings.*.json
+!appsettings.Development.json
+!appsettings.Production.json
 !appsettings.Example.json
 !appsettings.Sample.json
 !appsettings.Template.json
@@ -107,3 +109,5 @@ packages/
 node_modules/
 .nuget/
 .packages/
+/Blockbuster/appsettings.Development.json
+/Blockbuster/appsettings.Production.json
