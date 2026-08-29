@@ -1,10 +1,36 @@
 @page "/"
 
-<PageTitle>Blockbuster</PageTitle>
+<PageTitle>Home · Blockbuster</PageTitle>
 
 <section class="hero">
-    <p class="eyebrow">Your collection, at home</p>
-    <h1>Welcome to Blockbuster</h1>
-    <p>The foundation is ready. Catalog ingestion and playback arrive in later milestones.</p>
-    <a class="primary-action" href="movies">Browse movies</a>
+    <div class="hero-copy">
+        <h1>Make it a<br /><em>movie night.</em></h1>
+        <div class="hero-actions">
+            <BbButton Href="movies" Size="ButtonSize.Large" Class="gold-button"><LucideIcon Name="play" Size="18" />Browse movies</BbButton>
+            <BbButton Href="#libraries" Size="ButtonSize.Large" Variant="ButtonVariant.Outline"><LucideIcon Name="library" Size="18" />View libraries</BbButton>
+        </div>
+    </div>
+
+    <BbCard Class="feature-ticket">
+        <BbCardHeader>
+            <BbCardDescription>Tonight's feature</BbCardDescription>
+            <BbCardTitle>Your pick</BbCardTitle>
+        </BbCardHeader>
+        <BbCardContent><div class="ticket-reel"><LucideIcon Name="film" Size="42" /></div></BbCardContent>
+        <BbCardFooter><span>Admit everyone</span><span>Living room</span></BbCardFooter>
+    </BbCard>
+</section>
+
+<section class="libraries" id="libraries" aria-labelledby="libraries-title">
+    <div class="section-heading">
+        <div><span class="section-kicker">The shelves</span><h2 id="libraries-title">Browse your libraries</h2></div>
+        <BbBadge Variant="BadgeVariant.Secondary">Ready for your collection</BbBadge>
+    </div>
+
+    <div class="library-grid">
+        <LibraryCard Href="movies" Icon="film" Title="Movies" Description="Feature films and favorites" Featured="true" />
+        <LibraryCard Href="tv" Icon="tv" Title="TV" Description="Shows are coming later" />
+        <LibraryCard Href="videos" Icon="clapperboard" Title="Videos" Description="Personal videos, eventually" />
+        <LibraryCard Href="music" Icon="disc-3" Title="Music" Description="Albums are on the roadmap" />
+    </div>
 </section>

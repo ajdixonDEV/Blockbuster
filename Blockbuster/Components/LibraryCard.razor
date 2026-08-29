@@ -1,0 +1,16 @@
+<BbCard Class="@CardClass">
+    <a class="library-card-link" href="@Href">
+        <span class="library-icon"><LucideIcon Name="@Icon" Size="22" /></span>
+        <span class="library-copy"><strong>@Title</strong><small>@Description</small></span>
+        <LucideIcon Name="arrow-right" Size="19" Class="library-arrow" />
+    </a>
+</BbCard>
+
+@code {
+    [Parameter, EditorRequired] public string Href { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Icon { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Description { get; set; } = string.Empty;
+    [Parameter] public bool Featured { get; set; }
+    private string CardClass => Featured ? "library-card library-card-featured" : "library-card";
+}

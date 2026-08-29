@@ -4,21 +4,47 @@
 @page "/music"
 @inject NavigationManager Navigation
 
-<PageTitle>@Title</PageTitle>
+<PageTitle>@Title · Blockbuster</PageTitle>
 
-<section class="empty-state">
-    <p class="eyebrow">Catalog</p>
-    <h1>@Title</h1>
-    <p>@Title ingestion is not configured yet.</p>
+<section class="catalog-page">
+    <div class="catalog-heading">
+        <div><BbBadge Variant="BadgeVariant.Outline">Our collection</BbBadge><h1>@Title</h1><p>@Description</p></div>
+        <BbBadge Variant="BadgeVariant.Secondary">0 titles</BbBadge>
+    </div>
+
+    @if (IsMovies)
+    {
+        <BbCard Class="catalog-toolbar">
+            <div class="search-control"><LucideIcon Name="search" Size="17" /><BbInput Placeholder="Search movies" Disabled="true" AriaLabel="Search movies" /></div>
+            <BbButton Variant="ButtonVariant.Outline" Disabled="true">All genres<LucideIcon Name="chevron-down" Size="15" /></BbButton>
+            <BbButton Variant="ButtonVariant.Outline" Disabled="true">Any year<LucideIcon Name="chevron-down" Size="15" /></BbButton>
+            <BbButton Variant="ButtonVariant.Outline" Disabled="true">Title A–Z<LucideIcon Name="arrow-down-a-z" Size="15" /></BbButton>
+        </BbCard>
+    }
+
+    <BbCard Class="catalog-empty">
+        <BbCardContent>
+            <div class="empty-icon"><LucideIcon Name="@Icon" Size="34" /></div>
+            <BbCardTitle>@EmptyTitle</BbCardTitle>
+            <BbCardDescription>@EmptyMessage</BbCardDescription>
+            @if (IsMovies)
+            {
+                <BbBadge Variant="BadgeVariant.Outline">Scanning arrives in a later milestone</BbBadge>
+            }
+            else
+            {
+                <BbButton Href="movies" Variant="ButtonVariant.Link">Browse movies instead<LucideIcon Name="arrow-right" Size="16" /></BbButton>
+            }
+        </BbCardContent>
+    </BbCard>
 </section>
 
 @code {
-    private string Title => new Uri(Navigation.Uri).AbsolutePath.Trim('/').ToLowerInvariant() switch
-    {
-        "movies" => "Movies",
-        "tv" => "TV",
-        "videos" => "Videos",
-        "music" => "Music",
-        _ => "Catalog"
-    };
+    private string Slug => new Uri(Navigation.Uri).AbsolutePath.Trim('/').ToLowerInvariant();
+    private bool IsMovies => Slug == "movies";
+    private string Title => Slug switch { "movies" => "Movies", "tv" => "TV", "videos" => "Videos", "music" => "Music", _ => "Catalog" };
+    private string Description => IsMovies ? "Every piece of media we own, all in one place." : $"A home for your {Title.ToLowerInvariant()} collection.";
+    private string Icon => Slug switch { "movies" => "film", "tv" => "tv", "videos" => "clapperboard", "music" => "disc-3", _ => "library" };
+    private string EmptyTitle => IsMovies ? "The shelves are waiting" : $"{Title} is coming later";
+    private string EmptyMessage => IsMovies ? "Once a movie library is configured and scanned, posters will appear here." : "This library has a real home in the app, but ingestion and playback are outside the movie MVP.";
 }

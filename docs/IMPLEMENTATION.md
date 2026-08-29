@@ -53,3 +53,13 @@ Milestone 03 should configure Serilog before host construction, integrate it wit
 `ILogger<T>`, and add console and rolling-file sinks, request logging, context,
 retention, noise suppression, sensitive-data safeguards, and clean shutdown
 flushing. It should not add SQLite or DbUp yet.
+
+## UI skeleton
+
+- Added Blazor Blueprint Components 3.15.0 and Lucide Icons 2.0.2 as the UI
+  foundation, including services, precompiled styles, theme variables, imports,
+  and the required root portal host.
+- Added a responsive retro rental-store shell, home hero, Blueprint library
+  cards, and routed catalog empty states for Movies, TV, Videos, and Music.
+- Added a Blueprint movie toolbar skeleton. Controls that depend on future
+  persistence and profile work remain disabled rather than implying behavior.

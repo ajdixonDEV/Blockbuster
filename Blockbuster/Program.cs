@@ -1,5 +1,6 @@
 using Blockbuster.Components;
 using Blockbuster.Infrastructure.Configuration;
+using BlazorBlueprint.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +23,7 @@ if (builder.Environment.IsDevelopment())
 builder.Services
     .AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddBlazorBlueprintComponents();
 builder.Services.AddBlockbusterConfiguration(builder.Configuration);
 
 var app = builder.Build();

@@ -1,15 +1,36 @@
 @inherits LayoutComponentBase
 
-<header class="site-header">
-    <a class="brand" href="/">Blockbuster</a>
-    <nav aria-label="Primary navigation">
-        <NavLink href="movies">Movies</NavLink>
-        <NavLink href="tv">TV</NavLink>
-        <NavLink href="videos">Videos</NavLink>
-        <NavLink href="music">Music</NavLink>
-    </nav>
-</header>
+<div class="app-shell">
+    <header class="site-header">
+        <a class="brand" href="/" aria-label="Blockbuster home">
+            <span class="brand-mark"><LucideIcon Name="ticket" Size="22" /></span>
+            <span><strong>Blockbuster</strong><small>Home Video</small></span>
+        </a>
 
-<main>
-    @Body
-</main>
+        <nav class="primary-nav" aria-label="Primary navigation">
+            <NavLink href="movies"><LucideIcon Name="film" Size="17" />Movies</NavLink>
+            <NavLink href="tv"><LucideIcon Name="tv" Size="17" />TV</NavLink>
+            <NavLink href="videos"><LucideIcon Name="clapperboard" Size="17" />Videos</NavLink>
+            <NavLink href="music"><LucideIcon Name="disc-3" Size="17" />Music</NavLink>
+        </nav>
+
+        <div class="profile-action">
+            <BbBadge Variant="BadgeVariant.Outline" Class="server-badge">
+                <span class="online-dot"></span>Server online
+            </BbBadge>
+            <BbButton Variant="ButtonVariant.Ghost" Disabled="true" Class="profile-button">
+                <BbAvatar Size="AvatarSize.Small"><BbAvatarFallback>?</BbAvatarFallback></BbAvatar>
+                Choose profile
+            </BbButton>
+        </div>
+    </header>
+
+    <main>@Body</main>
+
+    <footer class="site-footer">
+        <span>Blockbuster Home Video</span>
+        <span>A private vault of family-owned media.</span>
+    </footer>
+</div>
+
+<BbPortalHost />
