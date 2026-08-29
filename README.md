@@ -32,4 +32,8 @@ configuration for machine paths and secrets. Do not commit them. Storage path
 overrides such as `Storage__LogsPath` must be absolute; when omitted, generated
 state remains beneath `Storage__DataRoot`.
 
+Logs are written to the console and to daily rolling files under the resolved
+logs path (`<data root>/logs` by default). File logs roll at 50 MB and retain the
+latest 14 files. Request events intentionally omit query strings.
+
 See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for the current milestone and the next bounded step.

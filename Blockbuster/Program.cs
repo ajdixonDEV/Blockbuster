@@ -1,7 +1,14 @@
 using Blockbuster.Components;
 using Blockbuster.Infrastructure.Configuration;
 using BlazorBlueprint.Components;
+using Serilog;
+using Serilog.Events;
+using System.Globalization;
 
+Log.Logger = new LoggerConfiguration().MinimumLevel.Information().WriteTo.Console(formatProvider: CultureInfo.InvariantCulture).CreateBootstrapLogger();
+
+try
+{
 var builder = WebApplication.CreateBuilder(args);
 
 if (builder.Environment.IsDevelopment()
@@ -13,18 +20,23 @@ if (builder.Environment.IsDevelopment()
     });
 }
 
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-if (builder.Environment.IsDevelopment())
-{
-    builder.Logging.AddDebug();
-}
-
 builder.Services
     .AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddBlazorBlueprintComponents();
 builder.Services.AddBlockbusterConfiguration(builder.Configuration);
+builder.Services.AddSerilog((services, configuration) =>
+{
+    var paths = services.GetRequiredService<IStoragePathResolver>();
+    Directory.CreateDirectory(paths.LogsPath);
+    configuration.ReadFrom.Configuration(builder.Configuration).ReadFrom.Services(services)
+        .Enrich.FromLogContext().Enrich.WithProperty("Application", "Blockbuster")
+        .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
+        .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture)
+        .WriteTo.File(Path.Combine(paths.LogsPath, "blockbuster-.log"), rollingInterval: RollingInterval.Day,
+            retainedFileCountLimit: 14, rollOnFileSizeLimit: true, fileSizeLimitBytes: 50 * 1024 * 1024,
+            shared: true, formatProvider: CultureInfo.InvariantCulture);
+});
 
 var app = builder.Build();
 
@@ -34,10 +46,36 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseSerilogRequestLogging(options =>
+{
+    options.GetLevel = (context, elapsed, exception) =>
+    {
+        if (exception is not null || context.Response.StatusCode >= 500) return LogEventLevel.Error;
+        if (context.Request.Path.StartsWithSegments("/media") || context.Request.Path.StartsWithSegments("/_blazor")) return LogEventLevel.Debug;
+        return elapsed > 1000 || context.Response.StatusCode >= 400 ? LogEventLevel.Warning : LogEventLevel.Information;
+    };
+    options.EnrichDiagnosticContext = (diagnostics, context) =>
+    {
+        diagnostics.Set("RequestHost", context.Request.Host.Value);
+        diagnostics.Set("RequestScheme", context.Request.Scheme);
+    };
+});
 app.UseHttpsRedirection();
 app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-app.Run();
+Log.Information("Starting Blockbuster in {Environment}", app.Environment.EnvironmentName);
+await app.RunAsync();
+return 0;
+}
+catch (Exception exception)
+{
+    Log.Fatal(exception, "Blockbuster terminated unexpectedly");
+    return 1;
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}

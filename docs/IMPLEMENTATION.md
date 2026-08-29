@@ -13,7 +13,7 @@ This file is the short handoff for future implementation conversations. The deta
 
 - [x] 01 — Repository and application scaffold
 - [x] 02 — Typed storage/configuration options and path resolution
-- [ ] 03 — Serilog startup, rolling files, and request logging
+- [x] 03 — Serilog startup, rolling files, and request logging
 - [ ] 04 — SQLite connection factory and DbUp migration runner
 - [ ] 05 — Data-protection persistence and health checks
 - [ ] 06 — Windows Service/systemd hosting and operator documentation
@@ -47,12 +47,27 @@ This file is the short handoff for future implementation conversations. The deta
 - Added configuration binding, validation, path default, path override, stable
   library ID, and leading-zero PIN tests.
 
+## Completed in milestone 03
+
+- Added a bootstrap logger before host construction so startup and configuration
+  failures reach the console.
+- Integrated Serilog with ASP.NET Core and `ILogger<T>` using the pinned
+  `Serilog.AspNetCore` 10.0.0 package.
+- Added invariant-format console output and daily rolling files beneath the
+  resolved logs path, with 50 MB size rolling and 14 retained files.
+- Added application and environment context plus one completion event per HTTP
+  request. Query strings are excluded from the request event.
+- Reduced successful media-range and Blazor transport requests to Debug while
+  preserving warnings and errors, and raised noisy framework categories to
+  Warning.
+- Added fatal startup logging and asynchronous clean-shutdown flushing.
+
 ## Next milestone
 
-Milestone 03 should configure Serilog before host construction, integrate it with
-`ILogger<T>`, and add console and rolling-file sinks, request logging, context,
-retention, noise suppression, sensitive-data safeguards, and clean shutdown
-flushing. It should not add SQLite or DbUp yet.
+Milestone 04 should add the pooled SQLite connection factory and DbUp migration
+runner, including foreign keys, WAL mode, busy timeout, embedded numbered scripts,
+one transaction per migration, startup failure behavior, and migration tests. It
+should not add profiles or application repositories yet.
 
 ## UI skeleton
 
