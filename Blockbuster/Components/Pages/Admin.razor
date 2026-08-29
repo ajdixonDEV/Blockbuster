@@ -10,8 +10,7 @@
 
 <PageTitle>Administration · Blockbuster</PageTitle>
 <section class="admin-page">
-    <div class="catalog-heading"><div><span class="section-kicker">Trusted network only</span><h1>Administration</h1><p>Profiles, health, and file-managed configuration.</p></div><form method="post" action="/auth/admin/logout"><button type="submit">Sign out</button></form></div>
-    <p class="access-note warning">The administrator PIN is an unthrottled convenience barrier, not public-internet security. Recovery is available only through the server-local reset command.</p>
+    <div class="catalog-heading"><div><span class="section-kicker">Trusted network only</span><h1>Administration</h1><p>Profile and health management.</p></div><form method="post" action="/auth/admin/logout"><button type="submit">Sign out</button></form></div>
     @if (!string.IsNullOrWhiteSpace(Error)) { <p class="form-error" role="alert">@Error</p> }
 
     <div class="admin-grid">

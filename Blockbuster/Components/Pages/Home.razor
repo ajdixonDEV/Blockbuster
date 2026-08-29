@@ -4,27 +4,29 @@
 
 <section class="hero">
     <div class="hero-copy">
-        <h1>Make it a<br /><em>movie night.</em></h1>
+        <h1>All of our media<br /><em>All in one place.</em></h1>
         <div class="hero-actions">
             <BbButton Href="movies" Size="ButtonSize.Large" Class="gold-button"><LucideIcon Name="play" Size="18" />Browse movies</BbButton>
-            <BbButton Href="#libraries" Size="ButtonSize.Large" Variant="ButtonVariant.Outline"><LucideIcon Name="library" Size="18" />View libraries</BbButton>
         </div>
     </div>
 
-    <BbCard Class="feature-ticket">
-        <BbCardHeader>
-            <BbCardDescription>Tonight's feature</BbCardDescription>
-            <BbCardTitle>Your pick</BbCardTitle>
-        </BbCardHeader>
-        <BbCardContent><div class="ticket-reel"><LucideIcon Name="film" Size="42" /></div></BbCardContent>
-        <BbCardFooter><span>Admit everyone</span><span>Living room</span></BbCardFooter>
-    </BbCard>
+    <div class="membership-card" role="img" aria-label="Blockbuster membership card">
+        <div class="membership-card-face">
+            <div class="membership-card-ticket">
+                <div class="membership-card-logo">Blockbuster</div>
+                <div class="membership-card-label">Membership Card</div>
+            </div>
+        </div>
+        <div class="membership-card-stub" aria-hidden="true">
+            <span>blockbuster.noxids.com</span>
+        </div>
+    </div>
 </section>
 
 <section class="libraries" id="libraries" aria-labelledby="libraries-title">
     <div class="section-heading">
-        <div><span class="section-kicker">The shelves</span><h2 id="libraries-title">Browse your libraries</h2></div>
-        <BbBadge Variant="BadgeVariant.Secondary">Ready for your collection</BbBadge>
+        <div><span class="section-kicker">The shelves</span><h2 id="libraries-title">Browse our libraries</h2></div>
+        <BbBadge Variant="BadgeVariant.Secondary">Pick a shelf and start browsing.</BbBadge>
     </div>
 
     <div class="library-grid">

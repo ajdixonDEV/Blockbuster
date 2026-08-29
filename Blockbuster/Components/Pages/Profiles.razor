@@ -7,7 +7,6 @@
 <section class="access-page">
     <span class="section-kicker">Who is watching?</span>
     <h1>Choose a profile</h1>
-    <p class="access-note">Profile PINs are optional convenience barriers. They are not privacy controls or parental controls.</p>
     @if (!string.IsNullOrWhiteSpace(Error)) { <p class="form-error" role="alert">@Error</p> }
     @if (profiles.Count == 0)
     {

@@ -44,10 +44,33 @@ try
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddAuthentication(options =>
     {
-        options.DefaultAuthenticateScheme = "Profile";
-        options.DefaultChallengeScheme = "Profile";
+        options.DefaultAuthenticateScheme = "Blockbuster";
+        options.DefaultChallengeScheme = "Blockbuster";
     })
-        .AddCookie("Profile", options =>
+    .AddPolicyScheme("Blockbuster", null, options =>
+    {
+        options.ForwardDefaultSelector = context =>
+        {
+            if (context.Request.Path.StartsWithSegments("/admin")
+                || context.Request.Path.StartsWithSegments("/auth/admin"))
+                return "Admin";
+
+            if (context.Request.Path.StartsWithSegments("/_blazor"))
+            {
+                if (Uri.TryCreate(context.Request.Headers.Referer, UriKind.Absolute, out var referer)
+                    && string.Equals(referer.Authority, context.Request.Host.Value, StringComparison.OrdinalIgnoreCase)
+                    && new PathString(referer.AbsolutePath).StartsWithSegments("/admin"))
+                    return "Admin";
+
+                if (!context.Request.Cookies.ContainsKey("blockbuster.profile")
+                    && context.Request.Cookies.ContainsKey("blockbuster.admin"))
+                    return "Admin";
+            }
+
+            return "Profile";
+        };
+    })
+    .AddCookie("Profile", options =>
         {
             options.Cookie.Name = "blockbuster.profile";
             options.Cookie.HttpOnly = true;

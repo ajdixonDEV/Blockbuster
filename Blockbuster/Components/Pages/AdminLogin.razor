@@ -3,9 +3,9 @@
 
 <PageTitle>Administrator sign in · Blockbuster</PageTitle>
 <section class="access-page narrow">
-    <span class="section-kicker">Trusted network administration</span>
-    <h1>Administrator</h1>
-    <p class="access-note">This four-digit PIN is weak protection intended only for a trusted LAN or VPN. Attempts are not throttled.</p>
+    <span class="section-kicker">Blockbuster Administration</span>
+    <h1>Admin Login</h1>
+    <p class="access-note">This four-digit PIN is weak protection intended only for a trusted LAN or VPN.</p>
     @if (!string.IsNullOrWhiteSpace(Error)) { <p class="form-error" role="alert">@Error</p> }
     <form method="post" action="/auth/admin/login" class="admin-login-form">
         <label for="admin-pin">Administrator PIN</label>
