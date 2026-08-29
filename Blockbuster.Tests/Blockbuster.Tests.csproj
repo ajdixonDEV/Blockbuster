@@ -16,4 +16,7 @@
     <ProjectReference Include="..\Blockbuster.Core\Blockbuster.Core.csproj" />
     <ProjectReference Include="..\Blockbuster.Infrastructure\Blockbuster.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 </Project>
