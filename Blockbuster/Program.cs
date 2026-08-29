@@ -4,6 +4,8 @@ using BlazorBlueprint.Components;
 using Serilog;
 using Serilog.Events;
 using System.Globalization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using System.Text.Json;
 
 Log.Logger = new LoggerConfiguration().MinimumLevel.Information().WriteTo.Console(formatProvider: CultureInfo.InvariantCulture).CreateBootstrapLogger();
 
@@ -63,6 +65,22 @@ app.UseSerilogRequestLogging(options =>
 app.UseHttpsRedirection();
 app.UseAntiforgery();
 app.MapStaticAssets();
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready"),
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        await JsonSerializer.SerializeAsync(context.Response.Body, new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.ToDictionary(
+                entry => entry.Key,
+                entry => new { status = entry.Value.Status.ToString(), description = entry.Value.Description })
+        }, cancellationToken: context.RequestAborted);
+    }
+});
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

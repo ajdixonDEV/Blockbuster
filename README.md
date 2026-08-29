@@ -36,4 +36,15 @@ Logs are written to the console and to daily rolling files under the resolved
 logs path (`<data root>/logs` by default). File logs roll at 50 MB and retain the
 latest 14 files. Request events intentionally omit query strings.
 
+SQLite is created at `<data root>/database/blockbuster.db` by default. Numbered,
+embedded migrations run before the server accepts requests, with WAL mode,
+foreign keys, connection pooling, and a five-second busy timeout enabled.
+Data-protection keys are persisted at `<data root>/data-protection-keys` so future
+authentication cookies can survive restarts.
+
+Operational probes are available at `/health/live` and `/health/ready`. Readiness
+reports SQLite integrity, storage writability, ffprobe, media-root availability,
+and TMDB configuration; it may therefore return HTTP 503 on an incompletely
+configured development machine even while the UI remains usable.
+
 See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for the current milestone and the next bounded step.

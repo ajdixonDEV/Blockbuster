@@ -14,8 +14,8 @@ This file is the short handoff for future implementation conversations. The deta
 - [x] 01 — Repository and application scaffold
 - [x] 02 — Typed storage/configuration options and path resolution
 - [x] 03 — Serilog startup, rolling files, and request logging
-- [ ] 04 — SQLite connection factory and DbUp migration runner
-- [ ] 05 — Data-protection persistence and health checks
+- [x] 04 — SQLite connection factory and DbUp migration runner
+- [x] 05 — Data-protection persistence and health checks
 - [ ] 06 — Windows Service/systemd hosting and operator documentation
 - [ ] 07 — Profiles and administrator foundation
 - [ ] 08 — Shared media primitives and movie scanning
@@ -64,10 +64,36 @@ This file is the short handoff for future implementation conversations. The deta
 
 ## Next milestone
 
-Milestone 04 should add the pooled SQLite connection factory and DbUp migration
-runner, including foreign keys, WAL mode, busy timeout, embedded numbered scripts,
-one transaction per migration, startup failure behavior, and migration tests. It
-should not add profiles or application repositories yet.
+Milestone 06 should add Windows Service and Linux systemd hosting compatibility,
+framework-dependent publishing guidance, reverse-proxy and forwarded-header
+configuration, service permissions, and operator documentation. It should also
+add the server-local backup and administrator PIN reset command framework without
+implementing browser administration or profiles yet.
+
+## Completed in milestone 04
+
+- Added the explicit `IDbConnectionFactory` contract and a pooled
+  `Microsoft.Data.Sqlite` implementation that opens one connection per operation.
+- Enabled foreign keys and a five-second busy timeout on every opened connection.
+- Added startup migration through pinned DbUp SQLite 6.0.4 with immutable,
+  numbered embedded scripts, one transaction per script, and DbUp's journal.
+- Enabled and verified WAL mode before migration, and made migration failure abort
+  application startup.
+- Added the first foundation migration and integration coverage for fresh and
+  repeated upgrades, journal behavior, required pragmas, and concurrent writes.
+
+## Completed in milestone 05
+
+- Persisted ASP.NET Core data-protection keys beneath the resolved data root and
+  isolated them with the stable `Blockbuster` application name.
+- Added `/health/live` for process liveness and `/health/ready` for structured
+  readiness details.
+- Added readiness checks for SQLite integrity, writable generated-state
+  directories, ffprobe availability, configured media roots, and TMDB setup.
+- Kept a missing TMDB token degraded while treating missing required ffprobe or
+  unavailable storage/database dependencies as unhealthy.
+- Added integration coverage proving protected values survive provider recreation
+  and readiness becomes healthy with all dependencies configured.
 
 ## UI skeleton
 
