@@ -7,6 +7,8 @@
 @inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.ScanningOptions> Scanning
 @inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.MediaProbeOptions> Probe
 @inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.TmdbOptions> Tmdb
+@inject IMovieCatalogStore MovieCatalog
+@inject ILibraryScanner LibraryScanner
 
 <PageTitle>Administration · Blockbuster</PageTitle>
 <section class="admin-page">
@@ -40,6 +42,61 @@
             @foreach (var check in health)
             { <div class="summary-row"><span>@check.Key</span><strong class="status-@check.Value.ToString().ToLowerInvariant()">@check.Value</strong></div> }
         </section>
+        <section class="admin-panel scan-panel">
+            <div class="panel-heading"><h2>Movie scanning</h2><form method="post" action="/admin/scans/request"><button type="submit" disabled="@LibraryScanner.Status.IsRunning">@(LibraryScanner.Status.IsRunning ? "Scanning…" : "Scan now")</button></form></div>
+            @if (scanRuns.Count == 0)
+            {
+                <p class="access-note">No movie roots have been scanned yet.</p>
+            }
+            @foreach (var run in scanRuns)
+            {
+                <div class="scan-run">
+                    <div><strong>@run.LibrarySourceId</strong><span class="status-@(run.CompletedAt is null ? "degraded" : run.Succeeded ? "healthy" : "unhealthy")">@(run.CompletedAt is null ? "Running" : run.Succeeded ? "Complete" : "Failed")</span></div>
+                    <code title="@run.RootPath">@run.RootPath</code>
+                    <small>@run.StartedAt.LocalDateTime.ToString("g") · @run.DiscoveredFiles found · @run.ChangedFiles changed · @run.MissingFiles missing</small>
+                    @if (!string.IsNullOrWhiteSpace(run.Error)) { <small class="status-unhealthy">@run.Error</small> }
+                </div>
+            }
+        </section>
+        <section class="admin-panel match-panel">
+            <h2>Movie match review</h2>
+            @if (pendingMatches.Count == 0)
+            {
+                <p class="access-note">No unmatched or ambiguous movie files need review.</p>
+            }
+            @foreach (var match in pendingMatches)
+            {
+                <article class="match-review">
+                    <div><strong>@match.ParsedTitle @(match.ParsedYear is null ? "" : $"({match.ParsedYear})")</strong><span>@match.Outcome</span></div>
+                    <code>@match.RelativePath</code>
+                    <p>@match.Explanation</p>
+                    @if (match.Candidates.Count > 0)
+                    {
+                        <div class="candidate-list">
+                            @foreach (var candidate in match.Candidates.Take(5))
+                            {
+                                <form method="post" action="/admin/matches/accept">
+                                    <input type="hidden" name="mediaFileId" value="@match.MediaFileId" />
+                                    <input type="hidden" name="tmdbId" value="@candidate.TmdbId" />
+                                    <button type="submit">Use @candidate.Title @(candidate.Year is null ? "" : $"({candidate.Year})")</button>
+                                </form>
+                            }
+                        </div>
+                    }
+                    <form method="post" action="/admin/matches/accept" class="compact-form">
+                        <input type="hidden" name="mediaFileId" value="@match.MediaFileId" />
+                        <input type="number" min="1" name="tmdbId" placeholder="TMDB ID" required aria-label="TMDB movie ID" />
+                        <button type="submit">Match by ID</button>
+                    </form>
+                    <form method="post" action="/admin/matches/local" class="compact-form">
+                        <input type="hidden" name="mediaFileId" value="@match.MediaFileId" />
+                        <input name="title" maxlength="200" value="@match.ParsedTitle" required aria-label="Local movie title" />
+                        <input type="number" min="1800" max="2200" name="year" value="@match.ParsedYear" placeholder="Year" aria-label="Local movie year" />
+                        <button type="submit">Use local metadata</button>
+                    </form>
+                </article>
+            }
+        </section>
         <section class="admin-panel">
             <h2>Configuration</h2>
             <div class="summary-row"><span>Data root</span><code>@Storage.Value.DataRoot</code></div>
@@ -56,10 +113,14 @@
     [SupplyParameterFromQuery] public string? Error { get; set; }
     private IReadOnlyList<Profile> profiles = [];
     private Dictionary<string, Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus> health = [];
+    private IReadOnlyList<LibraryScanRun> scanRuns = [];
+    private IReadOnlyList<PendingMovieMatch> pendingMatches = [];
     protected override async Task OnInitializedAsync()
     {
         profiles = await Profiles.ListAsync();
         var report = await HealthChecks.CheckHealthAsync(registration => registration.Tags.Contains("ready"));
         health = report.Entries.ToDictionary(x => x.Key, x => x.Value.Status);
+        scanRuns = await MovieCatalog.ListScanRunsAsync(10);
+        pendingMatches = await MovieCatalog.ListPendingMatchesAsync();
     }
 }

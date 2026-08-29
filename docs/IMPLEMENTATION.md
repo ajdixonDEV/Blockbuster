@@ -18,7 +18,7 @@ This file is the short handoff for future implementation conversations. The deta
 - [x] 05 — Data-protection persistence and health checks
 - [x] 06 — Windows Service/systemd hosting and operator documentation
 - [x] 07 — Profiles and administrator foundation
-- [ ] 08 — Shared media primitives and movie scanning
+- [x] 08 — Shared media primitives and movie scanning
 - [ ] 09 — Movie catalog and direct playback
 - [ ] 10 — Shared movie rooms
 
@@ -64,9 +64,9 @@ This file is the short handoff for future implementation conversations. The deta
 
 ## Next milestone
 
-Milestone 08 should add shared media-file persistence and contracts, ffprobe,
-safe movie-root reconciliation, filename parsing, TMDB matching/review, artwork
-caching, scheduled/manual scans, and scan status administration.
+Milestone 09 should build the searchable movie catalog, movie detail/version
+selection, authorized range streaming, direct-play compatibility checks, custom
+browser controls, per-profile progress/revisions, and capped playback history.
 
 ## Completed in milestone 07
 
@@ -86,6 +86,36 @@ caching, scheduled/manual scans, and scan status administration.
   remain file-managed.
 - Clearly label all PINs as unthrottled convenience barriers suitable only for a
   trusted LAN or VPN.
+
+## Completed in milestone 08
+
+- Added migration-backed configured-root scan state and runs, shared media files
+  with file facts and probe data, movies, provider metadata, local overrides,
+  genres, artwork paths, movie versions, and pending match review records.
+- Added explicit `IMediaProbe`, `IMovieMetadataProvider`, `IArtworkCache`,
+  `IMovieCatalogStore`, and `ILibraryScanner` contracts around the existing
+  media-neutral primitives.
+- Added bounded, shell-free ffprobe execution and structured duration, container,
+  video/audio codec, resolution, and channel parsing. Per-file probe failures are
+  retained for administrator review without aborting a successfully traversed
+  root.
+- Added filename title/year parsing and strict TMDB matching that accepts only one
+  normalized-title and matching-year result. Missing-year, unmatched, ambiguous,
+  unavailable-provider, and corrupt-probe cases remain explicit review items.
+- Added bearer-authenticated TMDB search/details, locally cached poster/backdrop
+  artwork, multi-file version merging by confirmed TMDB identity, and separate
+  administrator overrides that rescans do not overwrite. Added an About/Credits
+  route with TMDB's approved logo, link, and required non-endorsement notice.
+- Added non-overlapping startup, six-hour scheduled, and administrator-requested
+  scans with configurable concurrency. Each configured root reconciles
+  independently; unavailable or materially failed roots never mass-mark media
+  missing, while successful scans retain unavailable file associations/history.
+- Added administrator scan status/history and pending-match review with candidate,
+  direct TMDB ID, and local-metadata resolution paths.
+- Added unit/integration coverage for filename parsing, confidence matching, TMDB
+  request behavior, fresh/upgraded migrations, new/changed/missing files,
+  duplicate versions, corrupt probes, ambiguous matches, missing years, override
+  preservation, and failed-root availability protection.
 
 ## Completed in milestone 04
 

@@ -34,6 +34,7 @@ coverage*.lcov
 *.pid
 
 # Local application state
+[.]data/
 [Dd]ata/
 [Cc]ache/
 [Bb]ackups/

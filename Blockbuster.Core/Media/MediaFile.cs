@@ -7,4 +7,13 @@ public sealed record MediaFile(
     string RelativePath,
     long Length,
     DateTimeOffset LastModified,
-    bool IsAvailable);
+    bool IsAvailable,
+    string RootPath = "",
+    TimeSpan? Duration = null,
+    string? Container = null,
+    string? VideoCodec = null,
+    string? AudioCodec = null,
+    int? Width = null,
+    int? Height = null,
+    int? AudioChannels = null,
+    string? ProbeError = null);

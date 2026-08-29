@@ -9,6 +9,12 @@ using Microsoft.AspNetCore.DataProtection;
 using Blockbuster.Core.Profiles;
 using Blockbuster.Core.Security;
 using Blockbuster.Infrastructure.Profiles;
+using Blockbuster.Core.Media;
+using Blockbuster.Core.Movies;
+using Blockbuster.Core.Scanning;
+using Blockbuster.Infrastructure.Media;
+using Blockbuster.Infrastructure.Movies;
+using Blockbuster.Infrastructure.Scanning;
 
 namespace Blockbuster.Infrastructure.Configuration;
 
@@ -38,10 +44,20 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAdministratorCredentialStore, AdministratorCredentialStore>();
         services.AddSingleton<IPinHasher, PinHasher>();
         services.AddSingleton<IAdministratorPinResetService, AdministratorPinService>();
+        services.AddSingleton<IMovieCatalogStore, MovieCatalogStore>();
+        services.AddSingleton<IMediaProbe, FfprobeMediaProbe>();
+        services.AddHttpClient<IMovieMetadataProvider, TmdbMovieMetadataProvider>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+        services.AddHttpClient<IArtworkCache, ArtworkCache>(client => client.Timeout = TimeSpan.FromMinutes(2));
+        services.AddSingleton<ILibraryScanner, LibraryScanner>();
         services.AddSingleton<DatabaseMigrator>();
         services.AddSingleton<IDatabaseMigrator>(provider => provider.GetRequiredService<DatabaseMigrator>());
         services.AddHostedService(provider => provider.GetRequiredService<DatabaseMigrator>());
         services.AddHostedService<AdministratorBootstrapService>();
+        services.AddHostedService<LibraryScanHostedService>();
 
         services.AddDataProtection().SetApplicationName("Blockbuster");
         services.ConfigureOptions<DataProtectionOptionsSetup>();

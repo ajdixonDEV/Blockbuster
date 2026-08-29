@@ -17,6 +17,8 @@ using System.Security.Claims;
 using Blockbuster.Core.Profiles;
 using Blockbuster.Core.Security;
 using Blockbuster.Infrastructure.Security;
+using Blockbuster.Core.Movies;
+using Blockbuster.Core.Scanning;
 
 Log.Logger = new LoggerConfiguration().MinimumLevel.Information().WriteTo.Console(formatProvider: CultureInfo.InvariantCulture).CreateBootstrapLogger();
 
@@ -240,6 +242,61 @@ try
         if (!admin.Succeeded) return Results.Challenge(authenticationSchemes: ["Admin"]);
         var form = await context.Request.ReadFormAsync(context.RequestAborted);
         if (Guid.TryParse(form["id"], out var id)) await profiles.DeleteAsync(id, context.RequestAborted);
+        return Results.LocalRedirect("/admin");
+    }).DisableAntiforgery();
+
+    app.MapPost("/admin/scans/request", async (HttpContext context, ILibraryScanner scanner) =>
+    {
+        var admin = await context.AuthenticateAsync("Admin");
+        if (!admin.Succeeded) return Results.Challenge(authenticationSchemes: ["Admin"]);
+        var result = await scanner.ScanAsync(ScanReason.Manual, context.RequestAborted);
+        if (!result.Succeeded)
+            return Results.LocalRedirect("/admin?error=" + Uri.EscapeDataString("One or more movie roots could not be scanned. Existing availability was preserved for failed roots."));
+        return Results.LocalRedirect("/admin");
+    }).DisableAntiforgery();
+
+    app.MapPost("/admin/matches/accept", async (
+        HttpContext context,
+        IMovieCatalogStore catalog,
+        IMovieMetadataProvider metadata,
+        IArtworkCache artwork) =>
+    {
+        var admin = await context.AuthenticateAsync("Admin");
+        if (!admin.Succeeded) return Results.Challenge(authenticationSchemes: ["Admin"]);
+        var form = await context.Request.ReadFormAsync(context.RequestAborted);
+        if (!Guid.TryParse(form["mediaFileId"], out var mediaFileId)
+            || !int.TryParse(form["tmdbId"], out var tmdbId)
+            || tmdbId <= 0) return Results.BadRequest();
+        try
+        {
+            var movie = await metadata.GetAsync(tmdbId, context.RequestAborted);
+            if (movie is null) return Results.LocalRedirect("/admin?error=" + Uri.EscapeDataString("That TMDB movie could not be found."));
+            string? poster = null;
+            string? backdrop = null;
+            try
+            {
+                poster = await artwork.CacheAsync("poster", movie.TmdbId, movie.PosterPath, context.RequestAborted);
+                backdrop = await artwork.CacheAsync("backdrop", movie.TmdbId, movie.BackdropPath, context.RequestAborted);
+            }
+            catch (HttpRequestException) { }
+            await catalog.ApplyMetadataAsync(mediaFileId, movie, poster, backdrop, context.RequestAborted);
+            return Results.LocalRedirect("/admin");
+        }
+        catch (HttpRequestException)
+        {
+            return Results.LocalRedirect("/admin?error=" + Uri.EscapeDataString("TMDB could not be reached. The pending match was left unchanged."));
+        }
+    }).DisableAntiforgery();
+
+    app.MapPost("/admin/matches/local", async (HttpContext context, IMovieCatalogStore catalog) =>
+    {
+        var admin = await context.AuthenticateAsync("Admin");
+        if (!admin.Succeeded) return Results.Challenge(authenticationSchemes: ["Admin"]);
+        var form = await context.Request.ReadFormAsync(context.RequestAborted);
+        if (!Guid.TryParse(form["mediaFileId"], out var mediaFileId)) return Results.BadRequest();
+        int? year = int.TryParse(form["year"], out var parsedYear) ? parsedYear : null;
+        try { await catalog.ApplyLocalOverrideAsync(mediaFileId, form["title"].ToString(), year, context.RequestAborted); }
+        catch (ArgumentException) { return Results.LocalRedirect("/admin?error=" + Uri.EscapeDataString("The local title or year is invalid.")); }
         return Results.LocalRedirect("/admin");
     }).DisableAntiforgery();
 
