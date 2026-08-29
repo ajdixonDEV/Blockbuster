@@ -1,26 +1,28 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Blockbuster.Core.Persistence;
-using Blockbuster.Infrastructure.Health;
-using Blockbuster.Infrastructure.Persistence;
-using Blockbuster.Infrastructure.Security;
-using Blockbuster.Infrastructure.Operations;
-using Microsoft.AspNetCore.DataProtection;
-using Blockbuster.Core.Profiles;
-using Blockbuster.Core.Security;
-using Blockbuster.Infrastructure.Profiles;
 using Blockbuster.Core.Media;
 using Blockbuster.Core.Movies;
+using Blockbuster.Core.Persistence;
+using Blockbuster.Core.Profiles;
 using Blockbuster.Core.Scanning;
+using Blockbuster.Core.Security;
+using Blockbuster.Infrastructure.Configuration;
+using Blockbuster.Infrastructure.Health;
 using Blockbuster.Infrastructure.Media;
 using Blockbuster.Infrastructure.Movies;
+using Blockbuster.Infrastructure.Operations;
+using Blockbuster.Infrastructure.Persistence;
+using Blockbuster.Infrastructure.Profiles;
 using Blockbuster.Infrastructure.Scanning;
+using Blockbuster.Infrastructure.Security;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
-namespace Blockbuster.Infrastructure.Configuration;
+namespace Blockbuster.Infrastructure;
 
-public static class ServiceCollectionExtensions
+public static class DependencyInjection
 {
-    public static IServiceCollection AddBlockbusterConfiguration(
+    public static IServiceCollection AddBlockbusterInfrastructure(
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -34,6 +36,7 @@ public static class ServiceCollectionExtensions
         AddValidated<RoomsOptions, RoomsOptionsValidator>(services, configuration, RoomsOptions.SectionName);
         AddValidated<AuthenticationOptions, AuthenticationOptionsValidator>(services, configuration, AuthenticationOptions.SectionName);
         AddValidated<ReverseProxyOptions, ReverseProxyOptionsValidator>(services, configuration, ReverseProxyOptions.SectionName);
+
         services.AddSingleton<IStoragePathResolver, StoragePathResolver>();
         services.AddSingleton<SqliteConnectionFactory>();
         services.AddSingleton<IDbConnectionFactory>(provider => provider.GetRequiredService<SqliteConnectionFactory>());
@@ -68,6 +71,7 @@ public static class ServiceCollectionExtensions
             .AddCheck<MediaProbeHealthCheck>("ffprobe", tags: ["ready"])
             .AddCheck<LibraryRootsHealthCheck>("media-roots", tags: ["ready"])
             .AddCheck<TmdbConfigurationHealthCheck>("tmdb", tags: ["ready"]);
+
         return services;
     }
 
@@ -76,9 +80,9 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration,
         string sectionName)
         where TOptions : class
-        where TValidator : class, Microsoft.Extensions.Options.IValidateOptions<TOptions>
+        where TValidator : class, IValidateOptions<TOptions>
     {
-        services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<TOptions>, TValidator>();
+        services.AddSingleton<IValidateOptions<TOptions>, TValidator>();
         services.AddOptions<TOptions>()
             .Bind(configuration.GetSection(sectionName))
             .ValidateOnStart();

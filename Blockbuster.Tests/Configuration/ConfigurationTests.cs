@@ -1,3 +1,4 @@
+using Blockbuster.Infrastructure;
 using Blockbuster.Infrastructure.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -105,7 +106,7 @@ public sealed class ConfigurationTests
             .AddInMemoryCollection(values)
             .Build();
         var services = new ServiceCollection();
-        services.AddBlockbusterConfiguration(configuration);
+        services.AddBlockbusterInfrastructure(configuration);
         return services.BuildServiceProvider();
     }
 

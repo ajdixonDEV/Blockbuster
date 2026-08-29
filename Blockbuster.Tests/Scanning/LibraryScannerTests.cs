@@ -3,6 +3,7 @@ using Blockbuster.Core.Media;
 using Blockbuster.Core.Movies;
 using Blockbuster.Core.Persistence;
 using Blockbuster.Core.Scanning;
+using Blockbuster.Infrastructure;
 using Blockbuster.Infrastructure.Configuration;
 using Blockbuster.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
@@ -150,7 +151,7 @@ public sealed class LibraryScannerTests
         }).Build();
         var collection = new ServiceCollection();
         collection.AddLogging();
-        collection.AddBlockbusterConfiguration(configuration);
+        collection.AddBlockbusterInfrastructure(configuration);
         collection.AddSingleton(probe);
         collection.AddSingleton(metadata);
         collection.AddSingleton<IArtworkCache, StubArtworkCache>();

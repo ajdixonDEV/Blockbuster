@@ -1,5 +1,6 @@
 using Blockbuster.Core.Profiles;
 using Blockbuster.Core.Security;
+using Blockbuster.Infrastructure;
 using Blockbuster.Infrastructure.Configuration;
 using Blockbuster.Infrastructure.Persistence;
 using Blockbuster.Infrastructure.Security;
@@ -78,7 +79,7 @@ public sealed class ProfileFoundationTests
         }).Build();
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddBlockbusterConfiguration(configuration);
+        services.AddBlockbusterInfrastructure(configuration);
         return services.BuildServiceProvider(validateScopes: true);
     }
 

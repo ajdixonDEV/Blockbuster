@@ -1,4 +1,5 @@
 using Blockbuster.Core.Persistence;
+using Blockbuster.Infrastructure;
 using Blockbuster.Infrastructure.Configuration;
 using Blockbuster.Infrastructure.Persistence;
 using Microsoft.AspNetCore.DataProtection;
@@ -159,7 +160,7 @@ public sealed class PersistenceFoundationTests
         }).Build();
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddBlockbusterConfiguration(configuration);
+        services.AddBlockbusterInfrastructure(configuration);
         return services.BuildServiceProvider(validateScopes: true);
     }
 
