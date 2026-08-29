@@ -116,6 +116,36 @@ public sealed class PersistenceFoundationTests
         }
     }
 
+    [Fact]
+    public async Task BackupCreatesConsistentTimestampedSnapshot()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var testRoot = CreateTestRoot();
+        try
+        {
+            await using var services = CreateServices(testRoot);
+            await services.GetRequiredService<IDatabaseMigrator>().MigrateAsync(cancellationToken);
+            var connections = services.GetRequiredService<IDbConnectionFactory>();
+            await using (var connection = await connections.OpenConnectionAsync(cancellationToken))
+            await using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "INSERT INTO system_state(key,value,updated_at) VALUES ('before','1','now');";
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            var backupPath = await services.GetRequiredService<IDatabaseBackupService>().CreateBackupAsync(cancellationToken: cancellationToken);
+
+            await using var backup = new SqliteConnection($"Data Source={backupPath};Pooling=False");
+            await backup.OpenAsync(cancellationToken);
+            Assert.Equal("1", await ScalarAsync(backup, "SELECT COUNT(*) FROM system_state;", cancellationToken));
+            Assert.StartsWith("blockbuster-", Path.GetFileName(backupPath), StringComparison.Ordinal);
+        }
+        finally
+        {
+            DeleteTestRoot(testRoot);
+        }
+    }
+
     private static ServiceProvider CreateServices(string testRoot)
     {
         var ffprobe = Path.Combine(testRoot, "ffprobe-test");

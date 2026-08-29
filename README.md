@@ -48,3 +48,5 @@ and TMDB configuration; it may therefore return HTTP 503 on an incompletely
 configured development machine even while the UI remains usable.
 
 See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for the current milestone and the next bounded step.
+See [docs/OPERATIONS.md](docs/OPERATIONS.md) for publishing, Windows Service,
+systemd, reverse-proxy, health-check, and local backup guidance.

@@ -4,6 +4,7 @@ using Blockbuster.Core.Persistence;
 using Blockbuster.Infrastructure.Health;
 using Blockbuster.Infrastructure.Persistence;
 using Blockbuster.Infrastructure.Security;
+using Blockbuster.Infrastructure.Operations;
 using Microsoft.AspNetCore.DataProtection;
 
 namespace Blockbuster.Infrastructure.Configuration;
@@ -23,9 +24,13 @@ public static class ServiceCollectionExtensions
         AddValidated<HistoryOptions, HistoryOptionsValidator>(services, configuration, HistoryOptions.SectionName);
         AddValidated<RoomsOptions, RoomsOptionsValidator>(services, configuration, RoomsOptions.SectionName);
         AddValidated<AuthenticationOptions, AuthenticationOptionsValidator>(services, configuration, AuthenticationOptions.SectionName);
+        AddValidated<ReverseProxyOptions, ReverseProxyOptionsValidator>(services, configuration, ReverseProxyOptions.SectionName);
         services.AddSingleton<IStoragePathResolver, StoragePathResolver>();
         services.AddSingleton<SqliteConnectionFactory>();
         services.AddSingleton<IDbConnectionFactory>(provider => provider.GetRequiredService<SqliteConnectionFactory>());
+        services.AddSingleton<IDatabaseBackupService, SqliteDatabaseBackupService>();
+        services.AddSingleton<ISecretPinReader, ConsoleSecretPinReader>();
+        services.AddSingleton<OperatorCommandDispatcher>();
         services.AddSingleton<DatabaseMigrator>();
         services.AddSingleton<IDatabaseMigrator>(provider => provider.GetRequiredService<DatabaseMigrator>());
         services.AddHostedService(provider => provider.GetRequiredService<DatabaseMigrator>());

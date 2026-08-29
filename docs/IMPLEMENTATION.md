@@ -16,7 +16,7 @@ This file is the short handoff for future implementation conversations. The deta
 - [x] 03 — Serilog startup, rolling files, and request logging
 - [x] 04 — SQLite connection factory and DbUp migration runner
 - [x] 05 — Data-protection persistence and health checks
-- [ ] 06 — Windows Service/systemd hosting and operator documentation
+- [x] 06 — Windows Service/systemd hosting and operator documentation
 - [ ] 07 — Profiles and administrator foundation
 - [ ] 08 — Shared media primitives and movie scanning
 - [ ] 09 — Movie catalog and direct playback
@@ -64,11 +64,11 @@ This file is the short handoff for future implementation conversations. The deta
 
 ## Next milestone
 
-Milestone 06 should add Windows Service and Linux systemd hosting compatibility,
-framework-dependent publishing guidance, reverse-proxy and forwarded-header
-configuration, service permissions, and operator documentation. It should also
-add the server-local backup and administrator PIN reset command framework without
-implementing browser administration or profiles yet.
+Milestone 07 should implement the migration-backed administrator credential and
+profiles, bootstrap and local reset behavior, independent signed session cookies,
+profile selection guards, and focused browser administration for profile CRUD.
+It should also surface the existing health/configuration summaries behind the
+administrator boundary.
 
 ## Completed in milestone 04
 
@@ -94,6 +94,23 @@ implementing browser administration or profiles yet.
   unavailable storage/database dependencies as unhealthy.
 - Added integration coverage proving protected values survive provider recreation
   and readiness becomes healthy with all dependencies configured.
+
+## Completed in milestone 06
+
+- Added context-aware Windows Service and Linux systemd hosting lifetimes while
+  retaining normal console behavior for development.
+- Added validated, opt-in forwarded-header handling that requires explicit trusted
+  proxy IP addresses and supports HTTPS termination through Caddy or Nginx.
+- Added a local operator command dispatcher and a consistent timestamped SQLite
+  backup command using SQLite's online backup API. Existing files are not
+  overwritten and backups remain externally scheduled.
+- Added the non-echoed, interactive administrator PIN reset command contract. It
+  intentionally remains inactive until milestone 07 supplies the administrator
+  credential store.
+- Documented framework-dependent publishing, Windows Service registration,
+  systemd hardening and permissions, reverse proxies, health endpoints, secrets,
+  and operator commands in `docs/OPERATIONS.md`.
+- Added tests for reverse-proxy trust validation and consistent backup snapshots.
 
 ## UI skeleton
 

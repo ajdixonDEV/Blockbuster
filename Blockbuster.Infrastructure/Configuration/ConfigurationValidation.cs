@@ -166,3 +166,17 @@ internal sealed class AuthenticationOptionsValidator : IValidateOptions<Authenti
         return ConfigurationValidation.Result(failures);
     }
 }
+
+internal sealed class ReverseProxyOptionsValidator : IValidateOptions<ReverseProxyOptions>
+{
+    public ValidateOptionsResult Validate(string? name, ReverseProxyOptions options)
+    {
+        var failures = new List<string>();
+        if (options.ForwardLimit is < 1 or > 5) failures.Add("ReverseProxy:ForwardLimit must be between 1 and 5.");
+        if (options.Enabled && options.KnownProxies.Count == 0)
+            failures.Add("ReverseProxy:KnownProxies must contain at least one trusted proxy when forwarding is enabled.");
+        foreach (var proxy in options.KnownProxies.Where(proxy => !System.Net.IPAddress.TryParse(proxy, out _)))
+            failures.Add($"ReverseProxy known proxy '{proxy}' must be an IP address.");
+        return ConfigurationValidation.Result(failures);
+    }
+}

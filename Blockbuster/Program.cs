@@ -6,12 +6,20 @@ using Serilog.Events;
 using System.Globalization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using System.Text.Json;
+using Blockbuster.Infrastructure.Operations;
+using Blockbuster.Infrastructure.Persistence;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Options;
+using System.Net;
 
 Log.Logger = new LoggerConfiguration().MinimumLevel.Information().WriteTo.Console(formatProvider: CultureInfo.InvariantCulture).CreateBootstrapLogger();
 
 try
 {
-var builder = WebApplication.CreateBuilder(args);
+var isOperatorCommand = args.Length > 0 && string.Equals(args[0], "operator", StringComparison.OrdinalIgnoreCase);
+var builder = WebApplication.CreateBuilder(isOperatorCommand ? [] : args);
+builder.Host.UseWindowsService(options => options.ServiceName = "Blockbuster");
+builder.Host.UseSystemd();
 
 if (builder.Environment.IsDevelopment()
     && string.IsNullOrWhiteSpace(builder.Configuration["Storage:DataRoot"]))
@@ -41,6 +49,25 @@ builder.Services.AddSerilog((services, configuration) =>
 });
 
 var app = builder.Build();
+
+if (isOperatorCommand)
+{
+    await app.Services.GetRequiredService<IDatabaseMigrator>().MigrateAsync();
+    return await app.Services.GetRequiredService<OperatorCommandDispatcher>().RunAsync(args[1..]);
+}
+
+var reverseProxy = app.Services.GetRequiredService<IOptions<ReverseProxyOptions>>().Value;
+if (reverseProxy.Enabled)
+{
+    var forwardedHeaders = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+        ForwardLimit = reverseProxy.ForwardLimit
+    };
+    foreach (var proxy in reverseProxy.KnownProxies)
+        forwardedHeaders.KnownProxies.Add(IPAddress.Parse(proxy));
+    app.UseForwardedHeaders(forwardedHeaders);
+}
 
 if (!app.Environment.IsDevelopment())
 {

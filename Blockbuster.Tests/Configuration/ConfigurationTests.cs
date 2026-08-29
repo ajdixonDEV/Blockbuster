@@ -63,6 +63,7 @@ public sealed class ConfigurationTests
     [InlineData("Authentication:BootstrapPin", "123")]
     [InlineData("Authentication:BootstrapPin", "12a4")]
     [InlineData("Rooms:HardSeekThreshold", "00:00:00.500")]
+    [InlineData("ReverseProxy:ForwardLimit", "0")]
     public void InvalidConfigurationIsRejected(string key, string value)
     {
         var dataRoot = Path.GetFullPath(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
@@ -82,6 +83,17 @@ public sealed class ConfigurationTests
         values["Libraries:Sources:0:MovieRoots:0"] = Path.Combine(dataRoot, "movies-a");
         values["Libraries:Sources:1:Id"] = "movies";
         values["Libraries:Sources:1:MovieRoots:0"] = Path.Combine(dataRoot, "movies-b");
+        using var provider = BuildProvider(values);
+
+        Assert.Throws<OptionsValidationException>(() => ResolveAllOptions(provider));
+    }
+
+    [Fact]
+    public void EnabledReverseProxyRequiresExplicitTrustedProxy()
+    {
+        var dataRoot = Path.GetFullPath(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
+        var values = ValidConfiguration(dataRoot);
+        values["ReverseProxy:Enabled"] = "true";
         using var provider = BuildProvider(values);
 
         Assert.Throws<OptionsValidationException>(() => ResolveAllOptions(provider));
@@ -129,5 +141,6 @@ public sealed class ConfigurationTests
         _ = provider.GetRequiredService<IOptions<HistoryOptions>>().Value;
         _ = provider.GetRequiredService<IOptions<RoomsOptions>>().Value;
         _ = provider.GetRequiredService<IOptions<AuthenticationOptions>>().Value;
+        _ = provider.GetRequiredService<IOptions<ReverseProxyOptions>>().Value;
     }
 }

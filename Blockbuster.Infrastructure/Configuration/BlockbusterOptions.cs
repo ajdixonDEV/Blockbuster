@@ -90,3 +90,12 @@ public sealed class AuthenticationOptions
     public TimeSpan AdminCookieLifetime { get; set; } = TimeSpan.FromHours(8);
     public string? BootstrapPin { get; set; }
 }
+
+public sealed class ReverseProxyOptions
+{
+    public const string SectionName = "ReverseProxy";
+
+    public bool Enabled { get; set; }
+    public int ForwardLimit { get; set; } = 1;
+    public List<string> KnownProxies { get; set; } = [];
+}
