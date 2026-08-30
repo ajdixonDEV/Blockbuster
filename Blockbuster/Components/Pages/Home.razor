@@ -1,15 +1,18 @@
 @page "/"
 
 <PageTitle>Home · Blockbuster</PageTitle>
-
 <section class="hero">
     <div class="hero-copy">
-        <h1>All of our media<br /><em>All in one place.</em></h1>
+        <h1>
+            All of our media<br />
+            <em>All in one place.</em>
+        </h1>
         <div class="hero-actions">
-            <BbButton Href="movies" Size="ButtonSize.Large" Class="gold-button"><LucideIcon Name="play" Size="18" />Browse movies</BbButton>
+            <BbButton Href="movies" Size="ButtonSize.Large" Class="gold-button">
+                <LucideIcon Name="play" Size="18" />Browse movies
+            </BbButton>
         </div>
     </div>
-
     <div class="membership-card" role="img" aria-label="Blockbuster membership card">
         <div class="membership-card-face">
             <div class="membership-card-ticket">
@@ -22,13 +25,14 @@
         </div>
     </div>
 </section>
-
 <section class="libraries" id="libraries" aria-labelledby="libraries-title">
     <div class="section-heading">
-        <div><span class="section-kicker">The shelves</span><h2 id="libraries-title">Browse our libraries</h2></div>
+        <div>
+            <span class="section-kicker">The shelves</span>
+            <h2 id="libraries-title">Browse our libraries</h2>
+        </div>
         <BbBadge Variant="BadgeVariant.Secondary">Pick a shelf and start browsing.</BbBadge>
     </div>
-
     <div class="library-grid">
         <LibraryCard Href="movies" Icon="film" Title="Movies" Description="Feature films and favorites" Featured="true" />
         <LibraryCard Href="tv" Icon="tv" Title="TV" Description="Shows are coming later" />

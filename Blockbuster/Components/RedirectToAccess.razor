@@ -3,8 +3,15 @@
 @code {
     protected override void OnAfterRender(bool firstRender)
     {
-        if (!firstRender) return;
+        if (!firstRender)
+        {
+            return;
+        }
+
         var path = new Uri(Navigation.Uri).AbsolutePath;
-        Navigation.NavigateTo(path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase) ? "/admin/login" : "/profiles", forceLoad: true);
+        var destination = path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase)
+            ? "/admin/login"
+            : "/profiles";
+        Navigation.NavigateTo(destination, forceLoad: true);
     }
 }

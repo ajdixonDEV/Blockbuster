@@ -20,7 +20,7 @@ This file is the short handoff for future implementation conversations. The deta
 - [x] 07 — Profiles and administrator foundation
 - [x] 08 — Shared media primitives and movie scanning
 - [x] 09 — Movie catalog and direct playback
-- [ ] 10 — Shared movie rooms
+- [x] 10 — Shared movie rooms
 
 ## Completed in milestone 01
 
@@ -64,9 +64,26 @@ This file is the short handoff for future implementation conversations. The deta
 
 ## Next milestone
 
-Milestone 10 should add ephemeral shared movie rooms, active-room discovery,
-SignalR membership and serialized controls, resnapshot/reconnect behavior,
-drift correction, compatibility warnings, and five-minute empty-room expiry.
+The planned Movie MVP milestones are complete. TV, general-video, and Music
+ingestion remain intentionally deferred; choose and document a new bounded
+milestone before extending one of those libraries.
+
+## Completed in milestone 10
+
+- Added in-memory, media-neutral shared-room snapshots with pinned movie versions,
+  serialized last-command-wins revisions, participant membership, active-room
+  discovery, and configured empty-room expiry. Rooms intentionally end on restart.
+- Added an authenticated SignalR hub for membership, compact state/control messages,
+  disconnect handling, and reconnect snapshots. Any joined profile can play, pause,
+  or seek, and the latest controller is shown to everyone.
+- Added shared-room creation from compatible movie versions, a discovery route, and
+  a user-gesture-gated shared player. Each browser independently range-streams the
+  pinned version and retains local volume, mute, fullscreen, buffering, and errors.
+- Added periodic drift checks with modest playback-rate correction and hard seeks,
+  pinned-version compatibility warnings, blocked-autoplay recovery messaging, and
+  independent per-profile playback progress/history updates.
+- Added coordinator coverage for revision ordering, reconnect snapshots, creator
+  departure, participant membership, and invalid-command rejection.
 
 ## Completed in milestone 07
 

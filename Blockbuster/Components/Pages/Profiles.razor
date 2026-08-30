@@ -3,28 +3,41 @@
 @inject IProfileStore ProfileStore
 
 <PageTitle>Choose profile · Blockbuster</PageTitle>
-
 <section class="access-page">
     <span class="section-kicker">Who is watching?</span>
     <h1>Choose a profile</h1>
-    @if (!string.IsNullOrWhiteSpace(Error)) { <p class="form-error" role="alert">@Error</p> }
+    @if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <p class="form-error" role="alert">@Error</p>
+    }
     @if (profiles.Count == 0)
     {
-        <BbCard Class="catalog-empty"><BbCardContent><h3>No profiles yet</h3><p>An administrator needs to create the first viewing profile.</p><BbButton Href="admin/login">Administrator sign in</BbButton></BbCardContent></BbCard>
+        <BbCard Class="catalog-empty">
+            <BbCardContent>
+                <h3>No profiles yet</h3>
+                <p>An administrator needs to create the first viewing profile.</p>
+                <BbButton Href="admin/login">Administrator sign in</BbButton>
+            </BbCardContent>
+        </BbCard>
     }
     else
     {
         <div class="profile-grid">
-        @foreach (var profile in profiles)
-        {
-            <form method="post" action="/auth/profile/select" class="profile-tile">
-                <input type="hidden" name="profileId" value="@profile.Id" />
-                <BbAvatar Size="AvatarSize.Large"><BbAvatarFallback>@Initials(profile.Name)</BbAvatarFallback></BbAvatar>
-                <strong>@profile.Name</strong>
-                @if (profile.HasPin) { <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" placeholder="4-digit PIN" required aria-label="PIN for @profile.Name" /> }
-                <button type="submit">Watch as @profile.Name</button>
-            </form>
-        }
+            @foreach (var profile in profiles)
+            {
+                <form method="post" action="/auth/profile/select" class="profile-tile">
+                    <input type="hidden" name="profileId" value="@profile.Id" />
+                    <BbAvatar Size="AvatarSize.Large">
+                        <BbAvatarFallback>@Initials(profile.Name)</BbAvatarFallback>
+                    </BbAvatar>
+                    <strong>@profile.Name</strong>
+                    @if (profile.HasPin)
+                    {
+                        <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" placeholder="4-digit PIN" required aria-label="PIN for @profile.Name" />
+                    }
+                    <button type="submit">Watch as @profile.Name</button>
+                </form>
+            }
         </div>
     }
 </section>
@@ -32,6 +45,17 @@
 @code {
     [SupplyParameterFromQuery] public string? Error { get; set; }
     private IReadOnlyList<Profile> profiles = [];
-    protected override async Task OnInitializedAsync() => profiles = await ProfileStore.ListAsync();
-    private static string Initials(string name) => string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => char.ToUpperInvariant(x[0])));
+
+    protected override async Task OnInitializedAsync()
+    {
+        profiles = await ProfileStore.ListAsync();
+    }
+
+    private static string Initials(string name)
+    {
+        return string.Concat(
+            name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Take(2)
+                .Select(item => char.ToUpperInvariant(item[0])));
+    }
 }

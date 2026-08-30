@@ -1,0 +1,37 @@
+@page "/shared"
+@attribute [Authorize]
+@inject ISharedPlaybackCoordinator Rooms
+
+<PageTitle>Shared rooms · Blockbuster</PageTitle>
+<section class="catalog-page">
+    <div class="catalog-heading">
+        <div><BbBadge Variant="BadgeVariant.Outline">Watch together</BbBadge><h1>Shared rooms</h1>
+            <p>Close synchronization for viewers on your trusted network.</p></div>
+        <BbBadge Variant="BadgeVariant.Secondary">@rooms.Count active</BbBadge>
+    </div>
+    @if (rooms.Count == 0)
+    {
+        <BbCard Class="catalog-empty"><BbCardContent><div class="empty-icon"><LucideIcon Name="users" Size="34" /></div>
+            <BbCardTitle>No active rooms</BbCardTitle><BbCardDescription>Open a movie and choose “Watch together” to start one.</BbCardDescription>
+            <BbButton Href="movies" Variant="ButtonVariant.Link">Browse movies <LucideIcon Name="arrow-right" Size="16" /></BbButton>
+        </BbCardContent></BbCard>
+    }
+    else
+    {
+        <div class="room-grid">
+            @foreach (var room in rooms)
+            {
+                <a class="room-card" href="/shared/@room.RoomId">
+                    <LucideIcon Name="users" Size="24" /><div><strong>@room.MovieTitle</strong>
+                    <span>@room.ParticipantCount viewer@(room.ParticipantCount == 1 ? "" : "s") · @(room.IsPaused ? "Paused" : "Playing") at @FormatPosition(room.Position)</span></div>
+                </a>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private IReadOnlyList<SharedRoomSummary> rooms = [];
+    protected override void OnInitialized() => rooms = Rooms.ListRooms();
+    private static string FormatPosition(TimeSpan position) => position.ToString(@"h\:mm\:ss");
+}

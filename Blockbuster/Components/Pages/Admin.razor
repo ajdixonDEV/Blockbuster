@@ -12,8 +12,20 @@
 
 <PageTitle>Administration · Blockbuster</PageTitle>
 <section class="admin-page">
-    <div class="catalog-heading"><div><span class="section-kicker">Trusted network only</span><h1>Administration</h1><p>Profile and health management.</p></div><form method="post" action="/auth/admin/logout"><button type="submit">Sign out</button></form></div>
-    @if (!string.IsNullOrWhiteSpace(Error)) { <p class="form-error" role="alert">@Error</p> }
+    <div class="catalog-heading">
+        <div>
+            <span class="section-kicker">Trusted network only</span>
+            <h1>Administration</h1>
+            <p>Profile and health management.</p>
+        </div>
+        <form method="post" action="/auth/admin/logout">
+            <button type="submit">Sign out</button>
+        </form>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <p class="form-error" role="alert">@Error</p>
+    }
 
     <div class="admin-grid">
         <section class="admin-panel">
@@ -30,20 +42,35 @@
                         <input type="hidden" name="id" value="@profile.Id" />
                         <input name="name" maxlength="40" value="@profile.Name" required aria-label="Profile name" />
                         <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" placeholder="Replace PIN" aria-label="Replacement PIN" />
-                        <label><input type="checkbox" name="clearPin" /> Clear PIN</label>
+                        <label>
+                            <input type="checkbox" name="clearPin" /> Clear PIN
+                        </label>
                         <button type="submit">Save</button>
                     </form>
-                    <form method="post" action="/admin/profiles/delete"><input type="hidden" name="id" value="@profile.Id" /><button class="danger" type="submit">Delete</button></form>
+                    <form method="post" action="/admin/profiles/delete">
+                        <input type="hidden" name="id" value="@profile.Id" />
+                        <button class="danger" type="submit">Delete</button>
+                    </form>
                 </div>
             }
         </section>
         <section class="admin-panel">
             <h2>Health</h2>
             @foreach (var check in health)
-            { <div class="summary-row"><span>@check.Key</span><strong class="status-@check.Value.ToString().ToLowerInvariant()">@check.Value</strong></div> }
+            {
+                <div class="summary-row">
+                    <span>@check.Key</span>
+                    <strong class="status-@check.Value.ToString().ToLowerInvariant()">@check.Value</strong>
+                </div>
+            }
         </section>
         <section class="admin-panel scan-panel">
-            <div class="panel-heading"><h2>Movie scanning</h2><form method="post" action="/admin/scans/request"><button type="submit" disabled="@LibraryScanner.Status.IsRunning">@(LibraryScanner.Status.IsRunning ? "Scanning…" : "Scan now")</button></form></div>
+            <div class="panel-heading">
+                <h2>Movie scanning</h2>
+                <form method="post" action="/admin/scans/request">
+                    <button type="submit" disabled="@LibraryScanner.Status.IsRunning">@(LibraryScanner.Status.IsRunning ? "Scanning…" : "Scan now")</button>
+                </form>
+            </div>
             @if (scanRuns.Count == 0)
             {
                 <p class="access-note">No movie roots have been scanned yet.</p>
@@ -51,10 +78,16 @@
             @foreach (var run in scanRuns)
             {
                 <div class="scan-run">
-                    <div><strong>@run.LibrarySourceId</strong><span class="status-@(run.CompletedAt is null ? "degraded" : run.Succeeded ? "healthy" : "unhealthy")">@(run.CompletedAt is null ? "Running" : run.Succeeded ? "Complete" : "Failed")</span></div>
+                    <div>
+                        <strong>@run.LibrarySourceId</strong>
+                        <span class="status-@(run.CompletedAt is null ? "degraded" : run.Succeeded ? "healthy" : "unhealthy")">@(run.CompletedAt is null ? "Running" : run.Succeeded ? "Complete" : "Failed")</span>
+                    </div>
                     <code title="@run.RootPath">@run.RootPath</code>
                     <small>@run.StartedAt.LocalDateTime.ToString("g") · @run.DiscoveredFiles found · @run.ChangedFiles changed · @run.MissingFiles missing</small>
-                    @if (!string.IsNullOrWhiteSpace(run.Error)) { <small class="status-unhealthy">@run.Error</small> }
+                    @if (!string.IsNullOrWhiteSpace(run.Error))
+                    {
+                        <small class="status-unhealthy">@run.Error</small>
+                    }
                 </div>
             }
         </section>
@@ -67,7 +100,10 @@
             @foreach (var match in pendingMatches)
             {
                 <article class="match-review">
-                    <div><strong>@match.ParsedTitle @(match.ParsedYear is null ? "" : $"({match.ParsedYear})")</strong><span>@match.Outcome</span></div>
+                    <div>
+                        <strong>@match.ParsedTitle @(match.ParsedYear is null ? "" : $"({match.ParsedYear})")</strong>
+                        <span>@match.Outcome</span>
+                    </div>
                     <code>@match.RelativePath</code>
                     <p>@match.Explanation</p>
                     @if (match.Candidates.Count > 0)
@@ -99,11 +135,26 @@
         </section>
         <section class="admin-panel">
             <h2>Configuration</h2>
-            <div class="summary-row"><span>Data root</span><code>@Storage.Value.DataRoot</code></div>
-            <div class="summary-row"><span>Libraries</span><strong>@Libraries.Value.Sources.Count</strong></div>
-            <div class="summary-row"><span>Scan interval</span><strong>@Scanning.Value.Interval</strong></div>
-            <div class="summary-row"><span>ffprobe</span><code>@Probe.Value.ExecutablePath</code></div>
-            <div class="summary-row"><span>TMDB</span><strong>@(string.IsNullOrWhiteSpace(Tmdb.Value.Token) ? "Not configured" : "Configured")</strong></div>
+            <div class="summary-row">
+                <span>Data root</span>
+                <code>@Storage.Value.DataRoot</code>
+            </div>
+            <div class="summary-row">
+                <span>Libraries</span>
+                <strong>@Libraries.Value.Sources.Count</strong>
+            </div>
+            <div class="summary-row">
+                <span>Scan interval</span>
+                <strong>@Scanning.Value.Interval</strong>
+            </div>
+            <div class="summary-row">
+                <span>ffprobe</span>
+                <code>@Probe.Value.ExecutablePath</code>
+            </div>
+            <div class="summary-row">
+                <span>TMDB</span>
+                <strong>@(string.IsNullOrWhiteSpace(Tmdb.Value.Token) ? "Not configured" : "Configured")</strong>
+            </div>
             <p class="access-note">Host paths and operational settings are managed in configuration files or environment variables and cannot be edited here.</p>
         </section>
     </div>
@@ -112,9 +163,13 @@
 @code {
     [SupplyParameterFromQuery] public string? Error { get; set; }
     private IReadOnlyList<Profile> profiles = [];
+
     private Dictionary<string, Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus> health = [];
+
     private IReadOnlyList<LibraryScanRun> scanRuns = [];
+
     private IReadOnlyList<PendingMovieMatch> pendingMatches = [];
+
     protected override async Task OnInitializedAsync()
     {
         profiles = await Profiles.ListAsync();

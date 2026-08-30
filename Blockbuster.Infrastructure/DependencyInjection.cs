@@ -14,6 +14,8 @@ using Blockbuster.Infrastructure.Persistence;
 using Blockbuster.Infrastructure.Profiles;
 using Blockbuster.Infrastructure.Scanning;
 using Blockbuster.Infrastructure.Security;
+using Blockbuster.Core.SharedPlayback;
+using Blockbuster.Infrastructure.SharedPlayback;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,6 +54,7 @@ public static class DependencyInjection
         services.AddSingleton<MovieLibrary>();
         services.AddSingleton<IMovieLibrary>(provider => provider.GetRequiredService<MovieLibrary>());
         services.AddSingleton<IPlaybackProgressStore>(provider => provider.GetRequiredService<MovieLibrary>());
+        services.AddSingleton<ISharedPlaybackCoordinator, InMemorySharedPlaybackCoordinator>();
         services.AddSingleton<IMediaProbe, FfprobeMediaProbe>();
         services.AddHttpClient<IMovieMetadataProvider, TmdbMovieMetadataProvider>(client =>
         {

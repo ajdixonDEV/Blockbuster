@@ -1,0 +1,64 @@
+@page "/shared/{RoomId}"
+@attribute [Authorize]
+@implements IAsyncDisposable
+@inject ISharedPlaybackCoordinator Rooms
+@inject IMovieLibrary MovieLibrary
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JS
+
+<PageTitle>@(movie?.Title ?? "Shared room") · Blockbuster</PageTitle>
+@if (room is null || movie is null || version is null)
+{
+    <section class="catalog-empty"><h1>Room unavailable</h1><p>This room expired or its movie version is no longer available.</p><a href="/shared">Browse active rooms</a></section>
+}
+else
+{
+    <section class="player-page">
+        <a href="/shared" class="back-link">← Shared rooms</a>
+        <div class="shared-heading"><div><span class="live-dot"></span><strong>@movie.Title</strong><small>Room @RoomId</small></div>
+            <span data-participants>@ParticipantLabel(room.Participants)</span></div>
+        @if (!version.IsBrowserCompatible)
+        {
+            <div class="compatibility-warning"><strong>This pinned version may not play in your browser.</strong><p>@version.CompatibilityExplanation</p></div>
+        }
+        <div class="player-shell shared-player" id="shared-player">
+            <video src="/media/@version.MediaFileId" preload="metadata"></video>
+            <button class="join-room-overlay" data-action="join">Join room and synchronize</button>
+            <div class="player-status" aria-live="polite"></div>
+            <div class="player-controls">
+                <button data-action="play" aria-label="Play or pause">▶</button><span data-current>0:00</span>
+                <input data-seek type="range" min="0" max="1000" value="0" aria-label="Seek" /><span data-duration>0:00</span>
+                <button data-action="mute" aria-label="Mute">🔊</button><input data-volume type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume" />
+                <button data-action="fullscreen" aria-label="Fullscreen">⛶</button>
+            </div>
+        </div>
+        <p class="room-controller" data-controller>Join to begin. Any participant can control playback; the last server-accepted command wins.</p>
+    </section>
+}
+
+@code {
+    [Parameter] public string RoomId { get; set; } = "";
+    private SharedRoomSnapshot? room;
+    private MovieDetails? movie;
+    private MovieVersion? version;
+    private IJSObjectReference? module;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        room = Rooms.GetSnapshot(RoomId);
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (room is null || !Guid.TryParse(auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var profileId)) return;
+        movie = await MovieLibrary.GetAsync(room.MovieId, profileId);
+        version = movie?.Versions.FirstOrDefault(item => item.MediaFileId == room.MediaFileId && item.IsAvailable);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || room is null || movie is null || version is null) return;
+        module = await JS.InvokeAsync<IJSObjectReference>("import", "/js/sharedPlayer.js");
+        await module.InvokeVoidAsync("initialize", "shared-player", RoomId, movie.Id, movie.Progress?.TotalSeconds ?? 0, movie.ProgressRevision);
+    }
+
+    private static string ParticipantLabel(IReadOnlyList<string> names) => names.Count == 0 ? "Waiting for viewers" : string.Join(", ", names);
+    public async ValueTask DisposeAsync() { if (module is not null) { try { await module.InvokeVoidAsync("dispose", "shared-player"); await module.DisposeAsync(); } catch (JSDisconnectedException) { } } }
+}

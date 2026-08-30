@@ -6,7 +6,10 @@
     <span class="section-kicker">Blockbuster Administration</span>
     <h1>Admin Login</h1>
     <p class="access-note">This four-digit PIN is weak protection intended only for a trusted LAN or VPN.</p>
-    @if (!string.IsNullOrWhiteSpace(Error)) { <p class="form-error" role="alert">@Error</p> }
+    @if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <p class="form-error" role="alert">@Error</p>
+    }
     <form method="post" action="/auth/admin/login" class="admin-login-form">
         <label for="admin-pin">Administrator PIN</label>
         <input id="admin-pin" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" required autofocus />
@@ -14,4 +17,6 @@
     </form>
 </section>
 
-@code { [SupplyParameterFromQuery] public string? Error { get; set; } }
+@code { 
+    [SupplyParameterFromQuery] public string? Error { get; set; } 
+}

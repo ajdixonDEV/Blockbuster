@@ -2,6 +2,75 @@
 @attribute [Authorize]
 @inject IMovieLibrary MovieLibrary
 @inject AuthenticationStateProvider AuthenticationStateProvider
-<PageTitle>@(movie?.Title??"Movie") · Blockbuster</PageTitle>
-@if(movie is null){<section class="catalog-empty"><p>Movie not found.</p></section>}else{<section class="movie-detail">@if(movie.BackdropUrl is not null){<img class="detail-backdrop" src="@movie.BackdropUrl" alt=""/>}<div class="detail-content"><div class="detail-poster">@if(movie.PosterUrl is not null){<img src="@movie.PosterUrl" alt="Poster for @movie.Title"/>}else{<LucideIcon Name="film" Size="56"/>}</div><div><a href="/movies" class="back-link">← Back to movies</a><h1>@movie.Title</h1><p class="movie-meta">@(movie.Year?.ToString()??"Year unknown") @if(movie.Genres.Count>0){<text> · @string.Join(" · ",movie.Genres)</text>}</p><p class="overview">@(movie.Overview??"No overview is available.")</p><h2>Available versions</h2><div class="version-list">@foreach(var version in movie.Versions){<article class="version-card"><div><strong>@version.Label</strong><small>@version.VideoCodec / @version.AudioCodec · @FormatSize(version.Length)</small><p class="@(version.IsBrowserCompatible?"compatible":"incompatible")">@version.CompatibilityExplanation</p></div>@if(version.IsAvailable&&version.IsBrowserCompatible){<a class="play-link" href="/movies/@MovieId/play?file=@version.MediaFileId">@(movie.Progress is {TotalSeconds:>=30}?"Resume":"Play")</a>}else{<button disabled>Unavailable</button>}</article>}</div></div></div></section>}
-@code{[Parameter]public Guid MovieId{get;set;}private MovieDetails? movie;protected override async Task OnParametersSetAsync(){var auth=await AuthenticationStateProvider.GetAuthenticationStateAsync();if(Guid.TryParse(auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,out var id))movie=await MovieLibrary.GetAsync(MovieId,id);}private static string FormatSize(long x)=>$"{x/1024d/1024d:F1} MB";}
+<PageTitle>@(movie?.Title ?? "Movie") · Blockbuster</PageTitle>
+@if (movie is null)
+{
+    <section class="catalog-empty">
+        <p>Movie not found.</p>
+    </section>
+}
+else
+{
+    <section class="movie-detail">
+        @if (movie.BackdropUrl is not null)
+        {
+            <img class="detail-backdrop" src="@movie.BackdropUrl" alt="" />
+        }
+        <div class="detail-content">
+            <div class="detail-poster">
+                @if (movie.PosterUrl is not null)
+                {
+                    <img src="@movie.PosterUrl" alt="Poster for @movie.Title" />
+                }
+                else
+                {
+                    <LucideIcon Name="film" Size="56" />
+                }
+            </div>
+            <div>
+                <a href="/movies" class="back-link">← Back to movies</a>
+                <h1>@movie.Title</h1>
+                <p class="movie-meta">
+                    @(movie.Year?.ToString() ?? "Year unknown") @if(movie.Genres.Count>0){
+                    <text> · @string.Join(" · ", movie.Genres)</text>
+                }
+            </p>
+            <p class="overview">@(movie.Overview ?? "No overview is available.")</p>
+            <h2>Available versions</h2>
+            <div class="version-list">
+                @foreach (var version in movie.Versions)
+                {
+                    <article class="version-card">
+                        <div>
+                            <strong>@version.Label</strong>
+                            <small>@version.VideoCodec / @version.AudioCodec · @FormatSize(version.Length)</small>
+                            <p class="@(version.IsBrowserCompatible ? "compatible" : "incompatible")">@version.CompatibilityExplanation</p>
+                        </div>@if(version.IsAvailable&&version.IsBrowserCompatible){
+                        <div class="version-actions"><a class="play-link" href="/movies/@MovieId/play?file=@version.MediaFileId">@(movie.Progress is { TotalSeconds: >= 30 } ? "Resume" : "Play")</a>
+                        <a class="shared-link" href="/shared/new?movie=@MovieId&file=@version.MediaFileId">Watch together</a></div>
+                    }else
+                    {
+                        <button disabled>Unavailable</button>
+                    }
+                </article>
+            }
+        </div>
+    </div>
+</div>
+</section>
+}
+@code {
+    [Parameter] public Guid MovieId { get; set; }
+    private MovieDetails? movie;
+    protected override async Task OnParametersSetAsync()
+    {
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (Guid.TryParse(
+            auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+            out var id))
+        {
+            movie = await MovieLibrary.GetAsync(MovieId, id);
+        }
+    }
+    private static string FormatSize(long x) => $"{x / 1024d / 1024d:F1} MB";
+}

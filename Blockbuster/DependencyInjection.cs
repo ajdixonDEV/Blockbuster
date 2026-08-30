@@ -23,6 +23,8 @@ using System.Net;
 using System.Security.Claims;
 using System.Text.Json;
 using BlockbusterAuthenticationOptions = Blockbuster.Infrastructure.Configuration.AuthenticationOptions;
+using Blockbuster.Core.SharedPlayback;
+using Blockbuster.SharedPlayback;
 
 namespace Blockbuster;
 
@@ -50,6 +52,7 @@ public static class DependencyInjection
         ResolveRelativeLibraryRoots(builder);
 
         builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+        builder.Services.AddSignalR();
         builder.Services.AddBlazorBlueprintComponents();
         builder.Services.AddBlockbusterInfrastructure(builder.Configuration);
         builder.Services.AddHttpContextAccessor();
@@ -110,6 +113,7 @@ public static class DependencyInjection
         MapAuthenticationEndpoints(app);
         MapAdministrationEndpoints(app);
         MapPlaybackEndpoints(app);
+        app.MapHub<SharedPlaybackHub>("/hubs/shared-playback");
         return app;
     }
 
@@ -137,9 +141,21 @@ public static class DependencyInjection
             var result = await progress.SaveAsync(profileId, movieId, TimeSpan.FromSeconds(update.PositionSeconds), update.ExpectedRevision, update.EventType ?? "progress", cancellationToken);
             return result.Accepted ? Results.Ok(new { revision = result.Current.Revision, positionSeconds = result.Current.Position.TotalSeconds }) : Results.Conflict(new { revision = result.Current.Revision, positionSeconds = result.Current.Position.TotalSeconds });
         }).RequireAuthorization().DisableAntiforgery();
+
+        app.MapPost("/api/shared", async (CreateRoomRequest request, HttpContext context,
+            IMovieLibrary library, ISharedPlaybackCoordinator rooms, CancellationToken cancellationToken) =>
+        {
+            if (!Guid.TryParse(context.User.FindFirstValue(ClaimTypes.NameIdentifier), out var profileId)) return Results.Unauthorized();
+            var movie = await library.GetAsync(request.MovieId, profileId, cancellationToken);
+            var version = movie?.Versions.FirstOrDefault(item => item.MediaFileId == request.MediaFileId && item.IsAvailable);
+            if (movie is null || version is null) return Results.BadRequest();
+            var room = rooms.CreateRoom(movie.Id, version.MediaFileId, movie.Title);
+            return Results.Ok(new { roomId = room.RoomId });
+        }).RequireAuthorization().DisableAntiforgery();
     }
 
     private sealed record ProgressUpdate(double PositionSeconds, long ExpectedRevision, string? EventType);
+    private sealed record CreateRoomRequest(Guid MovieId, Guid MediaFileId);
 
     public static async Task<int> RunBlockbusterOperatorAsync(this WebApplication app, string[] args)
     {
