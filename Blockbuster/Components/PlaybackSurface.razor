@@ -1,0 +1,23 @@
+<div class="player-shell @(Shared ? "shared-player" : "")" id="@PlayerId">
+    <video src="@Source" preload="metadata"></video>
+    @if (Shared)
+    {
+        <button class="join-room-overlay" data-action="join">Join room and synchronize</button>
+    }
+    <div class="player-status" aria-live="polite"></div>
+    <div class="player-controls">
+        <button data-action="play" aria-label="Play or pause">▶</button>
+        <span data-current>0:00</span>
+        <input data-seek type="range" min="0" max="1000" value="0" aria-label="Seek" />
+        <span data-duration>0:00</span>
+        <button data-action="mute" aria-label="Mute">🔊</button>
+        <input data-volume type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume" />
+        <button data-action="fullscreen" aria-label="Fullscreen">⛶</button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string PlayerId { get; set; } = "";
+    [Parameter, EditorRequired] public string Source { get; set; } = "";
+    [Parameter] public bool Shared { get; set; }
+}

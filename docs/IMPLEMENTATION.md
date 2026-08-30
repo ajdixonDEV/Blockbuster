@@ -21,6 +21,7 @@ This file is the short handoff for future implementation conversations. The deta
 - [x] 08 — Shared media primitives and movie scanning
 - [x] 09 — Movie catalog and direct playback
 - [x] 10 — Shared movie rooms
+- [x] 11 — Shared-room lifecycle hardening
 
 ## Completed in milestone 01
 
@@ -64,9 +65,24 @@ This file is the short handoff for future implementation conversations. The deta
 
 ## Next milestone
 
-The planned Movie MVP milestones are complete. TV, general-video, and Music
-ingestion remain intentionally deferred; choose and document a new bounded
-milestone before extending one of those libraries.
+The remaining architecture-hardening work is browser playback consolidation,
+movie-match resolution, and staged configured-root reconciliation.
+
+## Completed in milestone 11
+
+- Replaced connection-ID-based coordinator calls with connection-scoped shared-room
+  sessions. A session is the only command authority and its leave operation is
+  idempotent, so a disconnected or unjoined caller cannot create membership.
+- Made room state, membership, expiry, and removal share one synchronization
+  boundary. Cleanup now uses injected `TimeProvider`, including deterministic
+  expiry-boundary and rejoin tests.
+- Made hub group-join failures roll back membership and disconnect close the stored
+  session before broadcasting the updated participant snapshot.
+- Extracted the duplicated Razor video/control surface used by direct and shared
+  playback, retaining the existing DOM hooks and routes while reducing markup drift.
+- Added a canonical movie-match resolver. Scanner and administrator flows now use
+  the same provider/local resolution policy; poster and backdrop caching run in
+  parallel and fail independently without discarding metadata.
 
 ## Completed in milestone 10
 

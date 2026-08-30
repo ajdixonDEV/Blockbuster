@@ -11,18 +11,28 @@ public sealed class SharedPlaybackHub(ISharedPlaybackCoordinator coordinator) : 
     public async Task<SharedRoomSnapshot> JoinRoom(string roomId)
     {
         var profile = Context.User?.FindFirstValue(ClaimTypes.Name) ?? "Viewer";
-        var snapshot = coordinator.Join(roomId, Context.ConnectionId, profile)
+        var session = coordinator.JoinRoom(roomId, profile)
             ?? throw new HubException("The shared room no longer exists.");
-        Context.Items["room"] = roomId;
-        await Groups.AddToGroupAsync(Context.ConnectionId, roomId);
-        await Clients.Group(roomId).SendAsync("RoomUpdated", snapshot);
-        return snapshot;
+        try
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, session.RoomId);
+            Context.Items["room-session"] = session;
+            var snapshot = coordinator.GetSnapshot(session.RoomId)!;
+            await Clients.Group(session.RoomId).SendAsync("RoomUpdated", snapshot);
+            return snapshot;
+        }
+        catch
+        {
+            session.Dispose();
+            throw;
+        }
     }
 
     public async Task SendCommand(string roomId, SharedPlaybackCommand command)
     {
-        var profile = Context.User?.FindFirstValue(ClaimTypes.Name) ?? "Viewer";
-        var snapshot = coordinator.Apply(roomId, Context.ConnectionId, profile, command)
+        if (!Context.Items.TryGetValue("room-session", out var value) || value is not ISharedRoomSession session || !string.Equals(session.RoomId, roomId, StringComparison.OrdinalIgnoreCase))
+            throw new HubException("Join the room before sending playback commands.");
+        var snapshot = session.Apply(command)
             ?? throw new HubException("The command or room was invalid.");
         await Clients.Group(roomId).SendAsync("StateChanged", snapshot);
     }
@@ -32,10 +42,10 @@ public sealed class SharedPlaybackHub(ISharedPlaybackCoordinator coordinator) : 
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        if (Context.Items.TryGetValue("room", out var value) && value is string roomId)
+        if (Context.Items.TryGetValue("room-session", out var value) && value is ISharedRoomSession session)
         {
-            var snapshot = coordinator.Leave(roomId, Context.ConnectionId);
-            if (snapshot is not null) await Clients.Group(roomId).SendAsync("RoomUpdated", snapshot);
+            var snapshot = session.Leave();
+            if (snapshot is not null) await Clients.Group(session.RoomId).SendAsync("RoomUpdated", snapshot);
         }
         await base.OnDisconnectedAsync(exception);
     }

@@ -9,21 +9,7 @@
 {
     <section class="player-page">
         <a href="/movies/@MovieId" class="back-link">← @movie.Title</a>
-        <div class="player-shell" id="movie-player">
-            <video src="/media/@version.MediaFileId" preload="metadata">
-            </video>
-            <div class="player-status" aria-live="polite">
-            </div>
-            <div class="player-controls">
-                <button data-action="play" aria-label="Play or pause">▶</button>
-                <span data-current>0:00</span>
-                <input data-seek type="range" min="0" max="1000" value="0" aria-label="Seek" />
-                <span data-duration>0:00</span>
-                <button data-action="mute" aria-label="Mute">🔊</button>
-                <input data-volume type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume" />
-                <button data-action="fullscreen" aria-label="Fullscreen">⛶</button>
-            </div>
-        </div>
+        <PlaybackSurface PlayerId="movie-player" Source="@($"/media/{version.MediaFileId}")" />
         <p class="player-help">Space: play/pause · ←/→: seek 10 seconds · M: mute · F: fullscreen</p>
     </section>
 }

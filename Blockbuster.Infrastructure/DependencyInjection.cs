@@ -51,10 +51,12 @@ public static class DependencyInjection
         services.AddSingleton<IPinHasher, PinHasher>();
         services.AddSingleton<IAdministratorPinResetService, AdministratorPinService>();
         services.AddSingleton<IMovieCatalogStore, MovieCatalogStore>();
+        services.AddSingleton<IMovieMatchResolver, MovieMatchResolver>();
         services.AddSingleton<MovieLibrary>();
         services.AddSingleton<IMovieLibrary>(provider => provider.GetRequiredService<MovieLibrary>());
         services.AddSingleton<IPlaybackProgressStore>(provider => provider.GetRequiredService<MovieLibrary>());
         services.AddSingleton<ISharedPlaybackCoordinator, InMemorySharedPlaybackCoordinator>();
+        services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IMediaProbe, FfprobeMediaProbe>();
         services.AddHttpClient<IMovieMetadataProvider, TmdbMovieMetadataProvider>(client =>
         {

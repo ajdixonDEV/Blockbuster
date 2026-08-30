@@ -94,6 +94,16 @@ public interface IArtworkCache
     Task<string?> CacheAsync(string kind, int tmdbId, string? providerPath, CancellationToken cancellationToken = default);
 }
 
+public sealed record MovieResolutionResult(bool Succeeded, bool PendingReview, string? Message);
+
+/// <summary>Owns provider matching and the resulting catalog transition for a media file.</summary>
+public interface IMovieMatchResolver
+{
+    Task<MovieResolutionResult> ResolveAutomaticAsync(Guid mediaFileId, ParsedMovieFileName parsed, CancellationToken cancellationToken = default);
+    Task<MovieResolutionResult> ResolveProviderSelectionAsync(Guid mediaFileId, int tmdbId, CancellationToken cancellationToken = default);
+    Task<MovieResolutionResult> ResolveLocalMetadataAsync(Guid mediaFileId, string title, int? year, CancellationToken cancellationToken = default);
+}
+
 public interface IMovieCatalogStore
 {
     Task<MovieScanFile?> FindFileAsync(string librarySourceId, string rootPath, string normalizedRelativePath, CancellationToken cancellationToken = default);

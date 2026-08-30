@@ -19,7 +19,13 @@ public interface ISharedPlaybackCoordinator
     IReadOnlyList<SharedRoomSummary> ListRooms();
     SharedRoomSnapshot CreateRoom(Guid movieId, Guid mediaFileId, string movieTitle);
     SharedRoomSnapshot? GetSnapshot(string roomId);
-    SharedRoomSnapshot? Join(string roomId, string connectionId, string profileName);
-    SharedRoomSnapshot? Leave(string roomId, string connectionId);
-    SharedRoomSnapshot? Apply(string roomId, string connectionId, string profileName, SharedPlaybackCommand command);
+    ISharedRoomSession? JoinRoom(string roomId, string profileName);
+}
+
+/// <summary>Connection-scoped authority to participate in one shared room.</summary>
+public interface ISharedRoomSession : IDisposable
+{
+    string RoomId { get; }
+    SharedRoomSnapshot? Apply(SharedPlaybackCommand command);
+    SharedRoomSnapshot? Leave();
 }

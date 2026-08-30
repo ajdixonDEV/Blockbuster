@@ -10,8 +10,7 @@ namespace Blockbuster.Infrastructure.Scanning;
 public sealed class LibraryScanner(
     IMovieCatalogStore catalog,
     IMediaProbe probe,
-    IMovieMetadataProvider metadata,
-    IArtworkCache artwork,
+    IMovieMatchResolver resolver,
     IOptions<LibrariesOptions> libraries,
     IOptions<ScanningOptions> scanning,
     ILogger<LibraryScanner> logger) : ILibraryScanner, IDisposable
@@ -107,7 +106,7 @@ public sealed class LibraryScanner(
                         return;
                     }
                     if (existing?.IsAssociated == true) return;
-                    await MatchAsync(stored.Id, parsed, cancellationToken);
+                    await resolver.ResolveAutomaticAsync(stored.Id, parsed, cancellationToken);
                 }
                 finally { concurrency.Release(); }
             });
@@ -128,61 +127,6 @@ public sealed class LibraryScanner(
             await catalog.CompleteScanRunAsync(runId, false, discovered, changed, 0, error, CancellationToken.None);
             RootFailed(logger, sourceId, root, exception);
             return new(sourceId, root, false, discovered, changed, 0, error);
-        }
-    }
-
-    private async Task MatchAsync(Guid mediaFileId, ParsedMovieFileName parsed, CancellationToken cancellationToken)
-    {
-        if (parsed.Year is null || !metadata.IsConfigured)
-        {
-            await catalog.QueuePendingMatchAsync(mediaFileId, parsed, MovieMatcher.Decide(parsed, [], metadata.IsConfigured), cancellationToken);
-            return;
-        }
-
-        IReadOnlyList<MovieMetadataCandidate> candidates;
-        try { candidates = await metadata.SearchAsync(parsed.Title, parsed.Year.Value, cancellationToken); }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            SearchFailed(logger, parsed.Title, parsed.Year.Value, exception);
-            await catalog.QueuePendingMatchAsync(mediaFileId, parsed,
-                new MovieMatchDecision(MovieMatchOutcome.ProviderUnavailable, null, [], "TMDB could not be reached; retry matching later."), cancellationToken);
-            return;
-        }
-
-        var decision = MovieMatcher.Decide(parsed, candidates, metadata.IsConfigured);
-        if (decision.Accepted is null)
-        {
-            await catalog.QueuePendingMatchAsync(mediaFileId, parsed, decision, cancellationToken);
-            return;
-        }
-
-        try
-        {
-            var details = await metadata.GetAsync(decision.Accepted.TmdbId, cancellationToken);
-            if (details is null)
-            {
-                await catalog.QueuePendingMatchAsync(mediaFileId, parsed,
-                    decision with { Outcome = MovieMatchOutcome.ProviderUnavailable, Accepted = null, Explanation = "TMDB details were unavailable; retry matching later." }, cancellationToken);
-                return;
-            }
-            string? poster = null;
-            string? backdrop = null;
-            try
-            {
-                poster = await artwork.CacheAsync("poster", details.TmdbId, details.PosterPath, cancellationToken);
-                backdrop = await artwork.CacheAsync("backdrop", details.TmdbId, details.BackdropPath, cancellationToken);
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                ArtworkFailed(logger, details.TmdbId, exception);
-            }
-            await catalog.ApplyMetadataAsync(mediaFileId, details, poster, backdrop, cancellationToken);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            DetailsFailed(logger, parsed.Title, parsed.Year!.Value, exception);
-            await catalog.QueuePendingMatchAsync(mediaFileId, parsed,
-                decision with { Outcome = MovieMatchOutcome.ProviderUnavailable, Accepted = null, Explanation = "TMDB details could not be loaded; retry matching later." }, cancellationToken);
         }
     }
 

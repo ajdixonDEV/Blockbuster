@@ -376,55 +376,26 @@ public static class DependencyInjection
             return Results.LocalRedirect("/admin");
         }).DisableAntiforgery();
 
-        app.MapPost("/admin/matches/accept", async (HttpContext context, IMovieCatalogStore catalog,
-            IMovieMetadataProvider metadata, IArtworkCache artwork) =>
+        app.MapPost("/admin/matches/accept", async (HttpContext context, IMovieMatchResolver resolver) =>
         {
             var admin = await context.AuthenticateAsync("Admin");
             if (!admin.Succeeded) return Results.Challenge(authenticationSchemes: ["Admin"]);
             var form = await context.Request.ReadFormAsync(context.RequestAborted);
             if (!Guid.TryParse(form["mediaFileId"], out var mediaFileId)
                 || !int.TryParse(form["tmdbId"], out var tmdbId) || tmdbId <= 0) return Results.BadRequest();
-            try
-            {
-                var movie = await metadata.GetAsync(tmdbId, context.RequestAborted);
-                if (movie is null) return Results.LocalRedirect("/admin?error="
-                    + Uri.EscapeDataString("That TMDB movie could not be found."));
-                string? poster = null;
-                string? backdrop = null;
-                try
-                {
-                    poster = await artwork.CacheAsync("poster", movie.TmdbId, movie.PosterPath, context.RequestAborted);
-                    backdrop = await artwork.CacheAsync("backdrop", movie.TmdbId, movie.BackdropPath, context.RequestAborted);
-                }
-                catch (HttpRequestException) { }
-                await catalog.ApplyMetadataAsync(mediaFileId, movie, poster, backdrop, context.RequestAborted);
-                return Results.LocalRedirect("/admin");
-            }
-            catch (HttpRequestException)
-            {
-                return Results.LocalRedirect("/admin?error="
-                    + Uri.EscapeDataString("TMDB could not be reached. The pending match was left unchanged."));
-            }
+            var result = await resolver.ResolveProviderSelectionAsync(mediaFileId, tmdbId, context.RequestAborted);
+            return result.Succeeded ? Results.LocalRedirect("/admin") : Results.LocalRedirect("/admin?error=" + Uri.EscapeDataString(result.Message ?? "That TMDB movie could not be found."));
         }).DisableAntiforgery();
 
-        app.MapPost("/admin/matches/local", async (HttpContext context, IMovieCatalogStore catalog) =>
+        app.MapPost("/admin/matches/local", async (HttpContext context, IMovieMatchResolver resolver) =>
         {
             var admin = await context.AuthenticateAsync("Admin");
             if (!admin.Succeeded) return Results.Challenge(authenticationSchemes: ["Admin"]);
             var form = await context.Request.ReadFormAsync(context.RequestAborted);
             if (!Guid.TryParse(form["mediaFileId"], out var mediaFileId)) return Results.BadRequest();
             int? year = int.TryParse(form["year"], out var parsedYear) ? parsedYear : null;
-            try
-            {
-                await catalog.ApplyLocalOverrideAsync(mediaFileId, form["title"].ToString(), year,
-                    context.RequestAborted);
-            }
-            catch (ArgumentException)
-            {
-                return Results.LocalRedirect("/admin?error="
-                    + Uri.EscapeDataString("The local title or year is invalid."));
-            }
-            return Results.LocalRedirect("/admin");
+            var result = await resolver.ResolveLocalMetadataAsync(mediaFileId, form["title"].ToString(), year, context.RequestAborted);
+            return result.Succeeded ? Results.LocalRedirect("/admin") : Results.LocalRedirect("/admin?error=" + Uri.EscapeDataString(result.Message ?? "The local title or year is invalid."));
         }).DisableAntiforgery();
     }
 }
