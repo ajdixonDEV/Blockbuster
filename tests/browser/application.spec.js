@@ -9,8 +9,12 @@ async function seedCatalog(page) {
   for (const name of ['Alice', 'Bob']) {
     if (await page.getByText(name, { exact: true }).count() === 0) {
       await page.locator('form[action="/admin/profiles/create"] input[name="name"]').fill(name);
-      await page.getByRole('button', { name: 'Create profile' }).click();
+      await Promise.all([
+        page.waitForURL('**/admin'),
+        page.getByRole('button', { name: 'Create profile' }).click()
+      ]);
     }
+    await expect(page.locator(`input[aria-label="Profile name"][value="${name}"]`)).toBeVisible();
   }
   await page.getByRole('button', { name: 'Scan now' }).click();
   await expect(page.getByText('Browser Fixture (2024)', { exact: true })).toBeVisible();

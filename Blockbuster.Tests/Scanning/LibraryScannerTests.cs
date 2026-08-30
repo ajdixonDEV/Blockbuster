@@ -63,6 +63,88 @@ public sealed class LibraryScannerTests
     }
 
     [Fact]
+    public async Task UnchangedScanPreservesProbeFactsAndDoesNotProbeAgain()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var root = CreateTestRoot();
+        var mediaRoot = Path.Combine(root, "movies");
+        Directory.CreateDirectory(mediaRoot);
+        await File.WriteAllTextAsync(Path.Combine(mediaRoot, "Heat (1995).mp4"), "movie", cancellationToken);
+        var probe = new StubProbe();
+        try
+        {
+            await using var services = CreateServices(root, mediaRoot, probe, new StubMetadataProvider("Heat", 1995, 949));
+            await services.GetRequiredService<IDatabaseMigrator>().MigrateAsync(cancellationToken);
+            var scanner = services.GetRequiredService<ILibraryScanner>();
+
+            Assert.True((await scanner.ScanAsync(ScanReason.Manual, cancellationToken)).Succeeded);
+            Assert.True((await scanner.ScanAsync(ScanReason.Manual, cancellationToken)).Succeeded);
+
+            Assert.Equal(1, probe.Calls);
+            Assert.Equal("mp4", await ScalarAsync(services, "SELECT container FROM media_files", cancellationToken));
+            Assert.Equal("h264", await ScalarAsync(services, "SELECT video_codec FROM media_files", cancellationToken));
+            Assert.Equal("1", await ScalarAsync(services, "SELECT COUNT(*) FROM movie_versions", cancellationToken));
+        }
+        finally { DeleteTestRoot(root); }
+    }
+
+    [Fact]
+    public async Task MissingProbeFactsAreRepairedWithoutReplacingTheMovieAssociation()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var root = CreateTestRoot();
+        var mediaRoot = Path.Combine(root, "movies");
+        Directory.CreateDirectory(mediaRoot);
+        await File.WriteAllTextAsync(Path.Combine(mediaRoot, "Heat (1995).mp4"), "movie", cancellationToken);
+        var probe = new StubProbe();
+        try
+        {
+            await using var services = CreateServices(root, mediaRoot, probe, new StubMetadataProvider("Heat", 1995, 949));
+            await services.GetRequiredService<IDatabaseMigrator>().MigrateAsync(cancellationToken);
+            var scanner = services.GetRequiredService<ILibraryScanner>();
+            Assert.True((await scanner.ScanAsync(ScanReason.Manual, cancellationToken)).Succeeded);
+            var movieId = await ScalarAsync(services, "SELECT movie_id FROM movie_versions", cancellationToken);
+            await ExecuteAsync(services, "UPDATE media_files SET duration_seconds=NULL,container=NULL,video_codec=NULL", cancellationToken);
+
+            Assert.True((await scanner.ScanAsync(ScanReason.Manual, cancellationToken)).Succeeded);
+
+            Assert.Equal(2, probe.Calls);
+            Assert.Equal(movieId, await ScalarAsync(services, "SELECT movie_id FROM movie_versions", cancellationToken));
+            Assert.Equal("mp4", await ScalarAsync(services, "SELECT container FROM media_files", cancellationToken));
+        }
+        finally { DeleteTestRoot(root); }
+    }
+
+    [Fact]
+    public async Task ChangedFileProbeFailureClearsStaleProbeFacts()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var root = CreateTestRoot();
+        var mediaRoot = Path.Combine(root, "movies");
+        Directory.CreateDirectory(mediaRoot);
+        var file = Path.Combine(mediaRoot, "Heat (1995).mp4");
+        await File.WriteAllTextAsync(file, "movie", cancellationToken);
+        var probe = new StubProbe();
+        try
+        {
+            await using var services = CreateServices(root, mediaRoot, probe, new StubMetadataProvider("Heat", 1995, 949));
+            await services.GetRequiredService<IDatabaseMigrator>().MigrateAsync(cancellationToken);
+            var scanner = services.GetRequiredService<ILibraryScanner>();
+            Assert.True((await scanner.ScanAsync(ScanReason.Manual, cancellationToken)).Succeeded);
+            await File.AppendAllTextAsync(file, " changed", cancellationToken);
+            File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddSeconds(2));
+            probe.FailAll = true;
+
+            Assert.True((await scanner.ScanAsync(ScanReason.Manual, cancellationToken)).Succeeded);
+
+            Assert.True(string.IsNullOrEmpty(await ScalarAsync(services, "SELECT container FROM media_files", cancellationToken)));
+            Assert.NotNull(await ScalarAsync(services, "SELECT probe_error FROM media_files", cancellationToken));
+            Assert.Contains((await services.GetRequiredService<IMovieCatalogReader>().ListPendingMatchesAsync(cancellationToken)), item => item.Outcome == MovieMatchOutcome.ProbeFailed);
+        }
+        finally { DeleteTestRoot(root); }
+    }
+
+    [Fact]
     public async Task UnavailableRootDoesNotMassMarkMediaMissing()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -273,11 +355,12 @@ public sealed class LibraryScannerTests
         private int _calls;
         public int Calls => _calls;
         public bool BlockUntilCancelled { get; set; }
+        public bool FailAll { get; set; }
         public async Task<MediaProbeResult> ProbeAsync(string absolutePath, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _calls);
             if (BlockUntilCancelled) await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-            if (failingName is not null && Path.GetFileName(absolutePath).Contains(failingName, StringComparison.OrdinalIgnoreCase))
+            if (FailAll || (failingName is not null && Path.GetFileName(absolutePath).Contains(failingName, StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidDataException("stub corrupt media");
             return new MediaProbeResult(TimeSpan.FromMinutes(100), "mp4", "h264", "aac", 1920, 1080, 2);
         }

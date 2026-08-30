@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject IMovieLibrary MovieLibrary
 @inject AuthenticationStateProvider AuthenticationStateProvider
+
 <PageTitle>@(movie?.Title ?? "Movie") · Blockbuster</PageTitle>
 @if (movie is null)
 {

@@ -25,6 +25,7 @@ public sealed class MovieLibrary(IDbConnectionFactory connections, IOptions<Hist
             WHERE (@Search IS NULL OR COALESCE(o.title,m.provider_title) LIKE @Search ESCAPE '\')
               AND (@Genre IS NULL OR EXISTS(SELECT 1 FROM movie_genres fg WHERE fg.movie_id=m.id AND fg.genre=@Genre COLLATE NOCASE))
               AND (@Year IS NULL OR COALESCE(o.year,m.provider_year)=@Year)
+              AND EXISTS(SELECT 1 FROM movie_versions visible_versions WHERE visible_versions.movie_id=m.id)
             """;
         var args = new { ProfileId = profileId.ToString("N"), Search = search, Genre = NullIfBlank(query.Genre), query.Year, Limit = pageSize, Offset = (page - 1) * pageSize };
         await using var connection = await connections.OpenConnectionAsync(cancellationToken);
@@ -39,8 +40,8 @@ public sealed class MovieLibrary(IDbConnectionFactory connections, IOptions<Hist
               LEFT JOIN movie_progress p ON p.movie_id=m.id AND p.profile_id=@ProfileId
             {where} ORDER BY {order} LIMIT @Limit OFFSET @Offset
             """, args, cancellationToken: cancellationToken));
-        var genres = (await connection.QueryAsync<string>(new CommandDefinition("SELECT DISTINCT genre FROM movie_genres ORDER BY genre COLLATE NOCASE", cancellationToken: cancellationToken))).ToList();
-        var years = (await connection.QueryAsync<int>(new CommandDefinition("SELECT DISTINCT COALESCE(o.year,m.provider_year) FROM movies m LEFT JOIN movie_overrides o ON o.movie_id=m.id WHERE COALESCE(o.year,m.provider_year) IS NOT NULL ORDER BY 1 DESC", cancellationToken: cancellationToken))).ToList();
+        var genres = (await connection.QueryAsync<string>(new CommandDefinition("SELECT DISTINCT g.genre FROM movie_genres g WHERE EXISTS(SELECT 1 FROM movie_versions v WHERE v.movie_id=g.movie_id) ORDER BY g.genre COLLATE NOCASE", cancellationToken: cancellationToken))).ToList();
+        var years = (await connection.QueryAsync<int>(new CommandDefinition("SELECT DISTINCT COALESCE(o.year,m.provider_year) FROM movies m LEFT JOIN movie_overrides o ON o.movie_id=m.id WHERE COALESCE(o.year,m.provider_year) IS NOT NULL AND EXISTS(SELECT 1 FROM movie_versions v WHERE v.movie_id=m.id) ORDER BY 1 DESC", cancellationToken: cancellationToken))).ToList();
         return new(rows.Select(ToItem).ToList(), total, page, pageSize, genres, years);
     }
 
@@ -156,7 +157,7 @@ public sealed class MovieLibrary(IDbConnectionFactory connections, IOptions<Hist
     private static object Keys(Guid profileId, Guid movieId) => new { ProfileId = profileId.ToString("N"), MovieId = movieId.ToString("N") };
     private static MovieCatalogItem ToItem(CatalogRow x) { var id=Guid.ParseExact(x.Id,"N"); return new(id,x.Title,ToInt(x.Year),x.Overview,ArtworkUrl(id,"poster",x.PosterPath),Split(x.Genres),checked((int)x.AvailableVersions),Parse(x.AddedAt),Seconds(x.ProgressSeconds),Seconds(x.DurationSeconds)); }
     private static MovieVersion ToVersion(VersionRow x) { var compatible=Compatible(x.Container,x.VideoCodec,x.AudioCodec); return new(Guid.ParseExact(x.MediaFileId,"N"),Label(x),x.Container??"unknown",x.VideoCodec,x.AudioCodec,ToInt(x.Width),ToInt(x.Height),ToInt(x.AudioChannels),Seconds(x.DurationSeconds),x.Length,Parse(x.LastModifiedAt),x.IsAvailable!=0,compatible,compatible?"Direct play is expected in modern browsers.":"This container or codec is not broadly supported by browsers; transcoding is not yet available."); }
-    private static bool Compatible(string? c,string? v,string? a) => (c?.Contains("mp4",StringComparison.OrdinalIgnoreCase)==true || c?.Contains("webm",StringComparison.OrdinalIgnoreCase)==true || c?.Contains("mov",StringComparison.OrdinalIgnoreCase)==true) && (v is null || v is "h264" or "vp8" or "vp9" or "av1") && (a is null || a is "aac" or "mp3" or "opus" or "vorbis");
+    private static bool Compatible(string? c,string? v,string? a) => (c?.Contains("mp4",StringComparison.OrdinalIgnoreCase)==true || c?.Contains("webm",StringComparison.OrdinalIgnoreCase)==true || c?.Contains("mov",StringComparison.OrdinalIgnoreCase)==true) && v is ("h264" or "vp8" or "vp9" or "av1") && (a is null || a is "aac" or "mp3" or "opus" or "vorbis");
     private static string Label(VersionRow x) => $"{(x.Height is null ? "Unknown" : $"{x.Height}p")} · {(x.Container??"unknown").ToUpperInvariant()} · {Path.GetFileName(x.RelativePath)}";
     private static string ContentType(string? c,string p) => c?.Contains("webm",StringComparison.OrdinalIgnoreCase)==true||Path.GetExtension(p).Equals(".webm",StringComparison.OrdinalIgnoreCase)?"video/webm":Path.GetExtension(p).Equals(".ogg",StringComparison.OrdinalIgnoreCase)?"video/ogg":"video/mp4";
     private static string? ArtworkUrl(Guid id,string kind,string? path)=>string.IsNullOrWhiteSpace(path)?null:$"/artwork/{id:N}/{kind}";

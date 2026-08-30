@@ -23,6 +23,7 @@ public sealed class MovieCatalogStore(IDbConnectionFactory connections) : IMovie
             SELECT id, library_source_id LibrarySourceId, root_path RootPath,
               normalized_relative_path NormalizedRelativePath, length,
               last_modified_at LastModifiedAt, is_available IsAvailable, probe_error ProbeError,
+              duration_seconds DurationSeconds,container Container,video_codec VideoCodec,
               EXISTS(SELECT 1 FROM movie_versions v WHERE v.media_file_id=media_files.id) IsAssociated
             FROM media_files
             WHERE library_source_id=@LibrarySourceId AND root_path=@RootPath
@@ -162,20 +163,32 @@ public sealed class MovieCatalogStore(IDbConnectionFactory connections) : IMovie
             var existing = await connection.QuerySingleOrDefaultAsync<MediaFileRow>(new CommandDefinition("""
                 SELECT id,library_source_id LibrarySourceId,root_path RootPath,normalized_relative_path NormalizedRelativePath,
                   length,last_modified_at LastModifiedAt,is_available IsAvailable,probe_error ProbeError,
+                  duration_seconds DurationSeconds,container Container,video_codec VideoCodec,
                   EXISTS(SELECT 1 FROM movie_versions v WHERE v.media_file_id=media_files.id) IsAssociated
                 FROM media_files WHERE library_source_id=@LibrarySourceId AND root_path=@RootPath AND normalized_relative_path=@NormalizedPath
                 """, new { LibrarySourceId = librarySourceId, RootPath = rootPath, item.NormalizedPath }, transaction, cancellationToken: cancellationToken));
             var changed = existing is null || existing.IsAvailable == 0 || existing.Length != item.Length
                 || !string.Equals(existing.LastModifiedAt, item.LastModifiedAt, StringComparison.Ordinal);
+            // An unchanged observation contains no probe values.  A staged probe
+            // result (or error) is therefore the explicit signal to replace facts
+            // while repairing an otherwise unchanged catalog row.
+            var replaceProbeFacts = changed || item.DurationSeconds is not null || item.ProbeError is not null;
             var mediaFileId = existing?.Id ?? item.AssignedMediaFileId ?? Guid.NewGuid().ToString("N");
             await connection.ExecuteAsync(new CommandDefinition("""
                 INSERT INTO media_files(id,library_source_id,root_path,media_kind,relative_path,normalized_relative_path,length,last_modified_at,duration_seconds,container,video_codec,audio_codec,width,height,audio_channels,probe_error,is_available,first_seen_at,last_seen_at)
                 VALUES(@Id,@LibrarySourceId,@RootPath,@MediaKind,@RelativePath,@NormalizedPath,@Length,@LastModifiedAt,@DurationSeconds,@Container,@VideoCodec,@AudioCodec,@Width,@Height,@AudioChannels,@ProbeError,1,@Now,@Now)
                 ON CONFLICT(library_source_id,root_path,normalized_relative_path) DO UPDATE SET
-                  relative_path=excluded.relative_path,length=excluded.length,last_modified_at=excluded.last_modified_at,duration_seconds=excluded.duration_seconds,
-                  container=excluded.container,video_codec=excluded.video_codec,audio_codec=excluded.audio_codec,width=excluded.width,height=excluded.height,
-                  audio_channels=excluded.audio_channels,probe_error=excluded.probe_error,is_available=1,last_seen_at=excluded.last_seen_at
-                """, new { Id = mediaFileId, LibrarySourceId = librarySourceId, RootPath = rootPath, MediaKind = (int)MediaKind.Movie, item.RelativePath, item.NormalizedPath, item.Length, item.LastModifiedAt, item.DurationSeconds, item.Container, item.VideoCodec, item.AudioCodec, item.Width, item.Height, item.AudioChannels, item.ProbeError, Now = now }, transaction, cancellationToken: cancellationToken));
+                  relative_path=excluded.relative_path,length=excluded.length,last_modified_at=excluded.last_modified_at,
+                  duration_seconds=CASE WHEN @ReplaceProbeFacts THEN excluded.duration_seconds ELSE media_files.duration_seconds END,
+                  container=CASE WHEN @ReplaceProbeFacts THEN excluded.container ELSE media_files.container END,
+                  video_codec=CASE WHEN @ReplaceProbeFacts THEN excluded.video_codec ELSE media_files.video_codec END,
+                  audio_codec=CASE WHEN @ReplaceProbeFacts THEN excluded.audio_codec ELSE media_files.audio_codec END,
+                  width=CASE WHEN @ReplaceProbeFacts THEN excluded.width ELSE media_files.width END,
+                  height=CASE WHEN @ReplaceProbeFacts THEN excluded.height ELSE media_files.height END,
+                  audio_channels=CASE WHEN @ReplaceProbeFacts THEN excluded.audio_channels ELSE media_files.audio_channels END,
+                  probe_error=CASE WHEN @ReplaceProbeFacts THEN excluded.probe_error ELSE media_files.probe_error END,
+                  is_available=1,last_seen_at=excluded.last_seen_at
+                """, new { Id = mediaFileId, LibrarySourceId = librarySourceId, RootPath = rootPath, MediaKind = (int)MediaKind.Movie, item.RelativePath, item.NormalizedPath, item.Length, item.LastModifiedAt, item.DurationSeconds, item.Container, item.VideoCodec, item.AudioCodec, item.Width, item.Height, item.AudioChannels, item.ProbeError, ReplaceProbeFacts = replaceProbeFacts, Now = now }, transaction, cancellationToken: cancellationToken));
             if (changed)
                 await ApplyStagedResolutionAsync(connection, transaction, Guid.ParseExact(mediaFileId, "N"), item.RelativePath, item.ProbeError, item.MatchResolutionJson, now, cancellationToken);
             promotions.Add(new(Guid.ParseExact(mediaFileId, "N"), item.RelativePath, changed, existing is not null && existing.IsAssociated != 0, item.ProbeError));
@@ -326,7 +339,8 @@ public sealed class MovieCatalogStore(IDbConnectionFactory connections) : IMovie
 
     private static MovieScanFile ToScanFile(MediaFileRow row) => new(
         Guid.ParseExact(row.Id, "N"), row.LibrarySourceId, row.RootPath, row.NormalizedRelativePath,
-        row.Length, ParseDate(row.LastModifiedAt), row.IsAvailable != 0, row.ProbeError, row.IsAssociated != 0);
+        row.Length, ParseDate(row.LastModifiedAt), row.IsAvailable != 0, row.ProbeError, row.IsAssociated != 0,
+        row.DurationSeconds is not null && !string.IsNullOrWhiteSpace(row.Container) && !string.IsNullOrWhiteSpace(row.VideoCodec));
 
     private static DateTimeOffset ParseDate(string value) => DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
@@ -375,6 +389,9 @@ public sealed class MovieCatalogStore(IDbConnectionFactory connections) : IMovie
         public string LastModifiedAt { get; init; } = string.Empty;
         public long IsAvailable { get; init; }
         public string? ProbeError { get; init; }
+        public double? DurationSeconds { get; init; }
+        public string? Container { get; init; }
+        public string? VideoCodec { get; init; }
         public long IsAssociated { get; init; }
     }
 

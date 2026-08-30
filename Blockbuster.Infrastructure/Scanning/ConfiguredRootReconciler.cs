@@ -57,7 +57,7 @@ public sealed class ConfiguredRootReconciler(
                     var info = new FileInfo(absolutePath);
                     var modified = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero);
                     var existing = await catalog.FindFileAsync(sourceId, root, normalized, cancellationToken);
-                    var isChanged = existing is null || !existing.IsAvailable || existing.Length != info.Length || existing.LastModified != modified;
+                    var isChanged = existing is null || !existing.IsAvailable || existing.Length != info.Length || existing.LastModified != modified || !existing.HasUsableProbeFacts;
                     if (isChanged) Interlocked.Increment(ref changed);
                     MediaProbeResult? probeResult = null;
                     string? probeError = null;

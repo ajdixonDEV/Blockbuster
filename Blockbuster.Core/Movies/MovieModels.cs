@@ -58,7 +58,8 @@ public sealed record MovieScanFile(
     DateTimeOffset LastModified,
     bool IsAvailable,
     string? ProbeError,
-    bool IsAssociated);
+    bool IsAssociated,
+    bool HasUsableProbeFacts);
 
 public sealed record MediaFileUpsert(
     string LibrarySourceId,
