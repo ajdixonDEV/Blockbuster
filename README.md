@@ -52,6 +52,12 @@ reports SQLite integrity, storage writability, ffprobe, media-root availability,
 and TMDB configuration; it may therefore return HTTP 503 on an incompletely
 configured development machine even while the UI remains usable.
 
-See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for the current milestone and the next bounded step.
-See [docs/OPERATIONS.md](docs/OPERATIONS.md) for publishing, Windows Service,
-systemd, reverse-proxy, health-check, and local backup guidance.
+<img width="2541" height="1307" alt="image" src="https://github.com/user-attachments/assets/49e035f0-bf13-4275-8599-210b2d7c8c92" />
+<img width="2551" height="1304" alt="image" src="https://github.com/user-attachments/assets/7092bedf-e9ec-4207-a468-5533e9f35956" />
+<img width="2552" height="1305" alt="image" src="https://github.com/user-attachments/assets/8fe788f9-3050-47ca-958d-17ef2e32dfd0" />
+<img width="2533" height="1307" alt="image" src="https://github.com/user-attachments/assets/ec0531e6-bd28-400f-a58b-e28cf98248c3" />
+<img width="2534" height="1298" alt="image" src="https://github.com/user-attachments/assets/fc45659c-bfcb-4c42-b5d8-661ff90e6fc1" />
+
+
+
+
