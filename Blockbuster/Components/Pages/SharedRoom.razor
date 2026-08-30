@@ -15,13 +15,14 @@ else
 {
     <section class="player-page">
         <a href="/shared" class="back-link">← Shared rooms</a>
+        <h1 id="main-heading" tabindex="-1">@movie.Title shared room</h1>
         <div class="shared-heading"><div><span class="live-dot"></span><strong>@movie.Title</strong><small>Room @RoomId</small></div>
             <span data-participants>@ParticipantLabel(room.Participants)</span></div>
         @if (!version.IsBrowserCompatible)
         {
             <div class="compatibility-warning"><strong>This pinned version may not play in your browser.</strong><p>@version.CompatibilityExplanation</p></div>
         }
-        <PlaybackSurface PlayerId="shared-player" Source="@($"/media/{version.MediaFileId}")" Shared="true" />
+        <PlaybackSurface PlayerId="shared-player" Source="@($"/media/{version.MediaFileId}")" AccessibleTitle="@movie.Title" Shared="true" />
         <p class="room-controller" data-controller>Join to begin. Any participant can control playback; the last server-accepted command wins.</p>
     </section>
 }

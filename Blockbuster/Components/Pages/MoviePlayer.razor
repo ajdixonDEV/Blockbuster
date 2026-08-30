@@ -9,13 +9,14 @@
 {
     <section class="player-page">
         <a href="/movies/@MovieId" class="back-link">← @movie.Title</a>
-        <PlaybackSurface PlayerId="movie-player" Source="@($"/media/{version.MediaFileId}")" />
+        <h1 id="main-heading" tabindex="-1">@movie.Title</h1>
+        <PlaybackSurface PlayerId="movie-player" Source="@($"/media/{version.MediaFileId}")" AccessibleTitle="@movie.Title" />
         <p class="player-help">Space: play/pause · ←/→: seek 10 seconds · M: mute · F: fullscreen</p>
     </section>
 }
 else
 {
-    <section class="catalog-empty">
+    <section class="catalog-empty"><h1 id="main-heading" tabindex="-1">Player unavailable</h1>
         <p>This version is unavailable.</p>
     </section>
 }

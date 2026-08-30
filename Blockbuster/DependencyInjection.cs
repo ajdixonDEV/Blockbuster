@@ -152,6 +152,21 @@ public static class DependencyInjection
             var room = rooms.CreateRoom(movie.Id, version.MediaFileId, movie.Title);
             return Results.Ok(new { roomId = room.RoomId });
         }).RequireAuthorization().DisableAntiforgery();
+
+        app.MapPost("/shared/new", async (HttpContext context, IMovieLibrary library,
+            ISharedPlaybackCoordinator rooms, CancellationToken cancellationToken) =>
+        {
+            if (!Guid.TryParse(context.User.FindFirstValue(ClaimTypes.NameIdentifier), out var profileId))
+                return Results.Unauthorized();
+            var form = await context.Request.ReadFormAsync(cancellationToken);
+            if (!Guid.TryParse(form["movie"], out var movieId) || !Guid.TryParse(form["file"], out var mediaFileId))
+                return Results.BadRequest();
+            var movie = await library.GetAsync(movieId, profileId, cancellationToken);
+            var version = movie?.Versions.FirstOrDefault(item => item.MediaFileId == mediaFileId && item.IsAvailable);
+            if (movie is null || version is null) return Results.BadRequest();
+            var room = rooms.CreateRoom(movie.Id, version.MediaFileId, movie.Title);
+            return Results.LocalRedirect($"/shared/{room.RoomId}");
+        }).RequireAuthorization().DisableAntiforgery();
     }
 
     private sealed record ProgressUpdate(double PositionSeconds, long ExpectedRevision, string? EventType);

@@ -31,8 +31,8 @@
         <section class="admin-panel">
             <h2>Profiles</h2>
             <form method="post" action="/admin/profiles/create" class="compact-form">
-                <input name="name" maxlength="40" placeholder="Profile name" required />
-                <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" placeholder="Optional 4-digit PIN" />
+                <label>Profile name <input name="name" maxlength="40" required /></label>
+                <label>Optional 4-digit PIN <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" /></label>
                 <button type="submit">Create profile</button>
             </form>
             @foreach (var profile in profiles)
@@ -49,7 +49,7 @@
                     </form>
                     <form method="post" action="/admin/profiles/delete">
                         <input type="hidden" name="id" value="@profile.Id" />
-                        <button class="danger" type="submit">Delete</button>
+                        <button class="danger" type="submit" onclick="return confirm('Delete this profile? This cannot be undone.');">Delete</button>
                     </form>
                 </div>
             }

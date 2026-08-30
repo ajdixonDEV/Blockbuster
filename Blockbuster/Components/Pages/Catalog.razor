@@ -3,7 +3,6 @@
 @page "/videos"
 @page "/music"
 @attribute [Authorize]
-@implements IDisposable
 @inject NavigationManager Navigation
 @inject IMovieLibrary MovieLibrary
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -18,7 +17,11 @@
         </div>
         <BbBadge Variant="BadgeVariant.Secondary">@(catalog?.Total ?? 0) titles</BbBadge>
     </div>
-    @if (IsMovies)
+    @if (loading)
+    {
+        <p class="access-note" role="status">Loading catalog…</p>
+    }
+    else if (IsMovies)
     {
         <form method="get" action="/movies" class="catalog-toolbar">
             <div class="search-control">
@@ -120,24 +123,26 @@
     private MovieCatalogPage? catalog;
     private IReadOnlyList<PlaybackEvent> activity = [];
 
-    protected override void OnInitialized()
+    private CancellationTokenSource? loadCancellation;
+    private bool loading;
+    protected override async Task OnParametersSetAsync()
     {
-        Navigation.LocationChanged += Changed;
+        loadCancellation?.Cancel();
+        loadCancellation?.Dispose();
+        loadCancellation = new CancellationTokenSource();
+        await LoadAsync(loadCancellation.Token);
     }
 
-    protected override Task OnParametersSetAsync()
+    private async Task LoadAsync(CancellationToken cancellationToken)
     {
-        return LoadAsync();
-    }
-
-    private async Task LoadAsync()
-    {
+        loading = true;
         slug = new Uri(Navigation.Uri).AbsolutePath.Trim('/').ToLowerInvariant();
         catalog = null;
         activity = [];
 
         if (!IsMovies)
         {
+            loading = false;
             return;
         }
 
@@ -146,6 +151,7 @@
             auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
             out var id))
         {
+            loading = false;
             return;
         }
 
@@ -155,28 +161,15 @@
             "added" => MovieSort.RecentlyAdded,
             _ => MovieSort.Title
         };
-        catalog = await MovieLibrary.BrowseAsync(id, new(Search, Genre, Year, sort, Page));
-        activity = await MovieLibrary.RecentActivityAsync(id, 5);
-    }
-
-    private void Changed(object? sender, LocationChangedEventArgs args)
-    {
-        var nextSlug = new Uri(args.Location).AbsolutePath.Trim('/').ToLowerInvariant();
-        if (nextSlug == slug)
+        try
         {
-            return;
+            var browse = MovieLibrary.BrowseAsync(id, new(Search, Genre, Year, sort, Page), cancellationToken);
+            var recent = MovieLibrary.RecentActivityAsync(id, 5, cancellationToken);
+            await Task.WhenAll(browse, recent);
+            if (!cancellationToken.IsCancellationRequested) { catalog = await browse; activity = await recent; }
         }
-
-        _ = InvokeAsync(async () =>
-        {
-            await LoadAsync();
-            StateHasChanged();
-        });
-    }
-
-    public void Dispose()
-    {
-        Navigation.LocationChanged -= Changed;
+        catch (OperationCanceledException) { }
+        finally { if (!cancellationToken.IsCancellationRequested) loading = false; }
     }
 
     private bool IsMovies => slug == "movies";

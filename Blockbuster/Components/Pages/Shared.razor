@@ -1,5 +1,6 @@
 @page "/shared"
 @attribute [Authorize]
+@implements IAsyncDisposable
 @inject ISharedPlaybackCoordinator Rooms
 
 <PageTitle>Shared rooms · Blockbuster</PageTitle>
@@ -32,6 +33,23 @@
 
 @code {
     private IReadOnlyList<SharedRoomSummary> rooms = [];
-    protected override void OnInitialized() => rooms = Rooms.ListRooms();
+    private PeriodicTimer? refreshTimer;
+    private CancellationTokenSource? refreshCancellation;
+    protected override void OnInitialized()
+    {
+        rooms = Rooms.ListRooms();
+        refreshCancellation = new CancellationTokenSource();
+        refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        _ = RefreshAsync(refreshCancellation.Token);
+    }
+    private async Task RefreshAsync(CancellationToken cancellationToken)
+    {
+        try { while (await refreshTimer!.WaitForNextTickAsync(cancellationToken)) { rooms = Rooms.ListRooms(); await InvokeAsync(StateHasChanged); } }
+        catch (OperationCanceledException) { }
+    }
+    public ValueTask DisposeAsync()
+    {
+        refreshCancellation?.Cancel(); refreshCancellation?.Dispose(); refreshTimer?.Dispose(); return ValueTask.CompletedTask;
+    }
     private static string FormatPosition(TimeSpan position) => position.ToString(@"h\:mm\:ss");
 }

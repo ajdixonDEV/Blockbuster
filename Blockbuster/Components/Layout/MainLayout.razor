@@ -1,5 +1,6 @@
 @inherits LayoutComponentBase
 
+<a class="skip-link" href="#main-content">Skip to main content</a>
 <div class="app-shell">
     <header class="site-header">
         <a class="brand" href="/" aria-label="Blockbuster home">
@@ -40,7 +41,7 @@
                             <BbAvatarFallback>@profileState.User.Identity?.Name?[0]</BbAvatarFallback>
                         </BbAvatar>@profileState.User.Identity?.Name
                     </a>
-                    <form method="post" action="/auth/profile/clear" class="session-action">
+                    <form method="post" action="@(profileState.User.HasClaim("administrator", "true") ? "/auth/admin/logout" : "/auth/profile/clear")" class="session-action">
                         <button type="submit">Sign out</button>
                     </form>
                 </Authorized>
@@ -57,7 +58,7 @@
             </a>
         </div>
     </header>
-    <main>@Body</main>
+    <main id="main-content" tabindex="-1">@Body</main>
     <footer class="site-footer">
         <span>Blockbuster Home Video</span>
         <span>

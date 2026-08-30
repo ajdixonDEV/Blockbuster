@@ -47,7 +47,7 @@ else
                             <p class="@(version.IsBrowserCompatible ? "compatible" : "incompatible")">@version.CompatibilityExplanation</p>
                         </div>@if(version.IsAvailable&&version.IsBrowserCompatible){
                         <div class="version-actions"><a class="play-link" href="/movies/@MovieId/play?file=@version.MediaFileId">@(movie.Progress is { TotalSeconds: >= 30 } ? "Resume" : "Play")</a>
-                        <a class="shared-link" href="/shared/new?movie=@MovieId&file=@version.MediaFileId">Watch together</a></div>
+                        <form method="post" action="/shared/new" class="shared-create-form"><input type="hidden" name="movie" value="@MovieId" /><input type="hidden" name="file" value="@version.MediaFileId" /><button class="shared-link" type="submit">Watch together</button></form></div>
                     }else
                     {
                         <button disabled>Unavailable</button>
