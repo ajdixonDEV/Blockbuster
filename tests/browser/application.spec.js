@@ -2,10 +2,46 @@ const { test, expect } = require('@playwright/test');
 
 test.describe.configure({ mode: 'serial' });
 
+async function seedCatalog(page) {
+  await page.goto('/admin/login');
+  await page.locator('#admin-pin').fill('1234');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  for (const name of ['Alice', 'Bob']) {
+    if (await page.getByText(name, { exact: true }).count() === 0) {
+      await page.locator('form[action="/admin/profiles/create"] input[name="name"]').fill(name);
+      await page.getByRole('button', { name: 'Create profile' }).click();
+    }
+  }
+  await page.getByRole('button', { name: 'Scan now' }).click();
+  await expect(page.getByText('Browser Fixture (2024)', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Use local metadata' }).click();
+}
+
+async function selectProfile(page, name) {
+  await page.goto('/profiles');
+  await page.getByRole('button', { name: `Watch as ${name}` }).click();
+  await expect(page.getByRole('heading', { name: 'Movies' })).toBeVisible();
+}
+
 test('starts the real application and renders profile selection', async ({ page }) => {
   await page.goto('/profiles');
   await expect(page).toHaveTitle(/Choose profile · Blockbuster/);
   await expect(page.getByRole('heading', { name: /choose a profile/i })).toBeVisible();
+});
+
+test('scans a real fixture and persists direct-play progress', async ({ page }) => {
+  await seedCatalog(page);
+  await selectProfile(page, 'Alice');
+  await page.getByRole('link', { name: 'Browser Fixture' }).click();
+  await page.getByRole('link', { name: 'Play' }).click();
+  const video = page.locator('#movie-player video');
+  await expect(video).toHaveJSProperty('readyState', 4);
+  await page.locator('#movie-player [data-action="play"]').click();
+  await expect(page.locator('#movie-player [data-action="play"]')).toHaveAttribute('aria-label', 'Pause');
+  await page.waitForTimeout(250);
+  await page.locator('#movie-player [data-action="play"]').click();
+  await page.goto('/movies');
+  await expect(page.locator('.poster-progress')).toBeVisible();
 });
 
 test('player controller keeps controls, keyboard shortcuts, and fullscreen state synchronized', async ({ page }) => {
