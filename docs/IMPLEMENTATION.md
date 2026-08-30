@@ -22,7 +22,7 @@ This file is the short handoff for future implementation conversations. The deta
 - [x] 09 — Movie catalog and direct playback
 - [x] 10 — Shared movie rooms
 - [x] 11 — Shared-room lifecycle hardening
-- [ ] 12 — Atomic configured-root reconciliation (staging and recovery in progress)
+- [x] 12 — Atomic configured-root reconciliation
 - [ ] 13 — Catalog contract and resolver verification hardening
 - [ ] 14 — Browser playback end-to-end verification
 
@@ -96,19 +96,20 @@ This file is the short handoff for future implementation conversations. The deta
 - Promotion now uses one SQLite transaction to apply staged media facts, mark
   absent paths unavailable, complete the run and configured-root state, and
   remove the staged rows together.
+- Automatic TMDB matching and independent artwork caching now run while the
+  root is being observed; their typed metadata or pending-review payload is
+  persisted with each observation and applied in that same promotion
+  transaction. Failed roots therefore cannot change associations, metadata,
+  overrides, or pending-review state.
 - Kept a failed or cancelled traversal isolated from availability reconciliation:
   its run is completed unsuccessfully and its staged observations are removed.
 - Added stale-run recovery to both hosted-service startup and scan invocation,
   marking interrupted runs unsuccessful and removing their observations.
 - Split the catalog's administration query surface into `IMovieCatalogReader`;
   the administration page no longer receives scan mutation APIs.
-
-### Remaining for milestone 12
-
-- Persist canonical match-resolution payloads in observations and apply their
-  match transitions in the same promotion transaction.
-- Add the failure, cancellation, recovery, and transaction-rollback integration
-  coverage described in the architecture plan.
+- Added integration coverage for successful promotion, unavailable-root
+  preservation, cancellation cleanup, stale-run recovery, and a forced SQLite
+  trigger rollback after promotion starts.
 
 ### Milestone 13 — Catalog contract and resolver verification hardening
 

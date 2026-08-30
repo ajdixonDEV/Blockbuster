@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Text.Json;
 using Blockbuster.Core.Media;
 using Blockbuster.Core.Movies;
 using Blockbuster.Core.Persistence;
@@ -38,6 +39,7 @@ public sealed class ConfiguredRootReconciler(
         Guid runId = Guid.Empty;
         var discovered = 0;
         var changed = 0;
+        var promoted = false;
         try
         {
             runId = await catalog.StartScanRunAsync(sourceId, root, DateTimeOffset.UtcNow, cancellationToken);
@@ -68,7 +70,11 @@ public sealed class ConfiguredRootReconciler(
                             ProbeFailed(logger, sourceId, relative, exception);
                         }
                     }
-                    observations.Add(new(relative, normalized, info.Length, modified, probeResult, probeError, existing?.Id, existing?.IsAssociated == true, isChanged));
+                    ScanMatchResolution? resolution = null;
+                    if (isChanged && probeError is null && existing?.IsAssociated != true)
+                        resolution = await resolver.PrepareAutomaticAsync(MovieFilenameParser.Parse(relative), cancellationToken);
+                    observations.Add(new(relative, normalized, info.Length, modified, probeResult, probeError, existing?.Id ?? Guid.NewGuid(), existing?.IsAssociated == true, isChanged,
+                        resolution is null ? null : JsonSerializer.Serialize(resolution)));
                 }
                 finally { gate.Release(); }
             }));
@@ -77,22 +83,13 @@ public sealed class ConfiguredRootReconciler(
             // Promotion is one SQLite transaction: media facts, availability, scan
             // state, run completion, and staging cleanup become visible together.
             var promotion = await catalog.PromoteStagedRunAsync(runId, sourceId, root, discovered, changed, cancellationToken);
-            foreach (var item in promotion.Files.Where(item => item.IsChanged))
-            {
-                if (item.ProbeError is not null)
-                {
-                    await catalog.QueuePendingMatchAsync(item.MediaFileId, MovieFilenameParser.Parse(item.RelativePath),
-                        new(MovieMatchOutcome.ProbeFailed, null, [], "ffprobe could not read this file; inspect the probe error and retry."), cancellationToken);
-                }
-                else if (!item.IsAssociated)
-                    await resolver.ResolveAutomaticAsync(item.MediaFileId, MovieFilenameParser.Parse(item.RelativePath), cancellationToken);
-            }
+            promoted = true;
             RootCompleted(logger, sourceId, root, discovered, changed, promotion.MissingFiles, null);
             return new(sourceId, root, true, discovered, changed, promotion.MissingFiles, null);
         }
         catch (OperationCanceledException)
         {
-            if (runId != Guid.Empty)
+            if (runId != Guid.Empty && !promoted)
             {
                 await catalog.CompleteScanRunAsync(runId, false, discovered, changed, 0, "Scan cancelled before reconciliation completed.", CancellationToken.None);
                 await DeleteObservationsAsync(runId, CancellationToken.None);
@@ -101,13 +98,13 @@ public sealed class ConfiguredRootReconciler(
         }
         catch (Exception exception)
         {
-            if (runId != Guid.Empty)
+            if (runId != Guid.Empty && !promoted)
             {
                 await catalog.CompleteScanRunAsync(runId, false, discovered, changed, 0, exception.Message, CancellationToken.None);
                 await DeleteObservationsAsync(runId, CancellationToken.None);
             }
             RootFailed(logger, sourceId, root, exception);
-            return new(sourceId, root, false, discovered, changed, 0, exception.Message);
+            return new(sourceId, root, promoted, discovered, changed, 0, exception.Message);
         }
     }
 
@@ -129,9 +126,9 @@ public sealed class ConfiguredRootReconciler(
         await using var connection = await connections.OpenConnectionAsync(cancellationToken);
         foreach (var item in observations)
             await connection.ExecuteAsync(new CommandDefinition("""
-                INSERT INTO library_scan_observations(run_id,normalized_relative_path,relative_path,length,last_modified_at,duration_seconds,container,video_codec,audio_codec,width,height,audio_channels,probe_error,assigned_media_file_id)
-                VALUES(@RunId,@NormalizedPath,@RelativePath,@Length,@LastModified,@DurationSeconds,@Container,@VideoCodec,@AudioCodec,@Width,@Height,@AudioChannels,@ProbeError,@AssignedMediaFileId)
-                """, new { RunId = runId.ToString("N"), item.NormalizedPath, item.RelativePath, item.Length, LastModified = item.LastModified.ToString("O", CultureInfo.InvariantCulture), DurationSeconds = item.Probe?.Duration.TotalSeconds, item.Probe?.Container, item.Probe?.VideoCodec, item.Probe?.AudioCodec, item.Probe?.Width, item.Probe?.Height, item.Probe?.AudioChannels, item.ProbeError, AssignedMediaFileId = item.AssignedMediaFileId?.ToString("N") }, cancellationToken: cancellationToken));
+                INSERT INTO library_scan_observations(run_id,normalized_relative_path,relative_path,length,last_modified_at,duration_seconds,container,video_codec,audio_codec,width,height,audio_channels,probe_error,assigned_media_file_id,match_resolution_json)
+                VALUES(@RunId,@NormalizedPath,@RelativePath,@Length,@LastModified,@DurationSeconds,@Container,@VideoCodec,@AudioCodec,@Width,@Height,@AudioChannels,@ProbeError,@AssignedMediaFileId,@MatchResolutionJson)
+                """, new { RunId = runId.ToString("N"), item.NormalizedPath, item.RelativePath, item.Length, LastModified = item.LastModified.ToString("O", CultureInfo.InvariantCulture), DurationSeconds = item.Probe?.Duration.TotalSeconds, item.Probe?.Container, item.Probe?.VideoCodec, item.Probe?.AudioCodec, item.Probe?.Width, item.Probe?.Height, item.Probe?.AudioChannels, item.ProbeError, AssignedMediaFileId = item.AssignedMediaFileId?.ToString("N"), item.MatchResolutionJson }, cancellationToken: cancellationToken));
     }
 
     private async Task DeleteObservationsAsync(Guid runId, CancellationToken cancellationToken)
@@ -156,5 +153,5 @@ public sealed class ConfiguredRootReconciler(
         return OperatingSystem.IsWindows() ? normalized.ToUpperInvariant() : normalized;
     }
 
-    private sealed record Observation(string RelativePath, string NormalizedPath, long Length, DateTimeOffset LastModified, MediaProbeResult? Probe, string? ProbeError, Guid? AssignedMediaFileId, bool WasAssociated, bool IsChanged);
+    private sealed record Observation(string RelativePath, string NormalizedPath, long Length, DateTimeOffset LastModified, MediaProbeResult? Probe, string? ProbeError, Guid? AssignedMediaFileId, bool WasAssociated, bool IsChanged, string? MatchResolutionJson);
 }

@@ -6,6 +6,7 @@ using Blockbuster.Core.Scanning;
 using Blockbuster.Infrastructure;
 using Blockbuster.Infrastructure.Configuration;
 using Blockbuster.Infrastructure.Persistence;
+using Dapper;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -136,6 +137,88 @@ public sealed class LibraryScannerTests
         finally { DeleteTestRoot(testRoot); }
     }
 
+    [Fact]
+    public async Task PromotionRollbackPreservesLiveCatalogAndCleansStaging()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var root = CreateTestRoot();
+        var mediaRoot = Path.Combine(root, "movies");
+        Directory.CreateDirectory(mediaRoot);
+        var file = Path.Combine(mediaRoot, "Heat (1995).mp4");
+        await File.WriteAllTextAsync(file, "original", cancellationToken);
+        try
+        {
+            await using var services = CreateServices(root, mediaRoot, new StubProbe(), new StubMetadataProvider("Heat", 1995, 949));
+            await services.GetRequiredService<IDatabaseMigrator>().MigrateAsync(cancellationToken);
+            var scanner = services.GetRequiredService<ILibraryScanner>();
+            Assert.True((await scanner.ScanAsync(ScanReason.Manual, cancellationToken)).Succeeded);
+            var originalLength = await ScalarAsync(services, "SELECT length FROM media_files", cancellationToken);
+            var originalMovieId = await ScalarAsync(services, "SELECT id FROM movies", cancellationToken);
+            await File.AppendAllTextAsync(file, "-changed", cancellationToken);
+            File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddSeconds(2));
+            await ExecuteAsync(services, "CREATE TRIGGER reject_media_update BEFORE UPDATE ON media_files BEGIN SELECT RAISE(ABORT, 'forced promotion rollback'); END;", cancellationToken);
+
+            var result = await scanner.ScanAsync(ScanReason.Manual, cancellationToken);
+
+            Assert.False(result.Succeeded);
+            Assert.Equal(originalLength, await ScalarAsync(services, "SELECT length FROM media_files", cancellationToken));
+            Assert.Equal(originalMovieId, await ScalarAsync(services, "SELECT id FROM movies", cancellationToken));
+            Assert.Equal("0", await ScalarAsync(services, "SELECT COUNT(*) FROM library_scan_observations", cancellationToken));
+        }
+        finally { DeleteTestRoot(root); }
+    }
+
+    [Fact]
+    public async Task CancellationCleansStagingAndDoesNotChangeAvailability()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var root = CreateTestRoot();
+        var mediaRoot = Path.Combine(root, "movies");
+        Directory.CreateDirectory(mediaRoot);
+        var file = Path.Combine(mediaRoot, "Heat (1995).mp4");
+        await File.WriteAllTextAsync(file, "original", cancellationToken);
+        var probe = new StubProbe();
+        try
+        {
+            await using var services = CreateServices(root, mediaRoot, probe, new StubMetadataProvider("Heat", 1995, 949));
+            await services.GetRequiredService<IDatabaseMigrator>().MigrateAsync(cancellationToken);
+            var scanner = services.GetRequiredService<ILibraryScanner>();
+            Assert.True((await scanner.ScanAsync(ScanReason.Manual, cancellationToken)).Succeeded);
+            await File.AppendAllTextAsync(file, "-changed", cancellationToken);
+            File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddSeconds(2));
+            probe.BlockUntilCancelled = true;
+            using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => scanner.ScanAsync(ScanReason.Manual, cancel.Token));
+
+            Assert.Equal("1", await ScalarAsync(services, "SELECT COUNT(*) FROM media_files WHERE is_available=1", cancellationToken));
+            Assert.Equal("0", await ScalarAsync(services, "SELECT COUNT(*) FROM library_scan_observations", cancellationToken));
+        }
+        finally { DeleteTestRoot(root); }
+    }
+
+    [Fact]
+    public async Task RecoveryCompletesInterruptedRunAndRemovesItsObservations()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var root = CreateTestRoot();
+        var mediaRoot = Path.Combine(root, "movies");
+        Directory.CreateDirectory(mediaRoot);
+        try
+        {
+            await using var services = CreateServices(root, mediaRoot, new StubProbe(), new StubMetadataProvider());
+            await services.GetRequiredService<IDatabaseMigrator>().MigrateAsync(cancellationToken);
+            var runId = await services.GetRequiredService<IMovieCatalogStore>().StartScanRunAsync("movies-main", mediaRoot, DateTimeOffset.UtcNow, cancellationToken);
+            await ExecuteAsync(services, $"INSERT INTO library_scan_observations(run_id,normalized_relative_path,relative_path,length,last_modified_at) VALUES('{runId:N}','STALE.MP4','stale.mp4',1,'now')", cancellationToken);
+
+            await services.GetRequiredService<IConfiguredRootReconciler>().RecoverInterruptedRunsAsync(cancellationToken);
+
+            Assert.Equal("1", await ScalarAsync(services, "SELECT COUNT(*) FROM library_scan_runs WHERE completed_at IS NOT NULL AND succeeded=0", cancellationToken));
+            Assert.Equal("0", await ScalarAsync(services, "SELECT COUNT(*) FROM library_scan_observations", cancellationToken));
+        }
+        finally { DeleteTestRoot(root); }
+    }
+
     private static ServiceProvider CreateServices(string testRoot, string mediaRoot, IMediaProbe probe, IMovieMetadataProvider metadata)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
@@ -166,6 +249,12 @@ public sealed class LibraryScannerTests
         return Convert.ToString(await command.ExecuteScalarAsync(cancellationToken), System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    private static async Task ExecuteAsync(IServiceProvider services, string sql, CancellationToken cancellationToken)
+    {
+        await using var connection = await services.GetRequiredService<IDbConnectionFactory>().OpenConnectionAsync(cancellationToken);
+        await connection.ExecuteAsync(new CommandDefinition(sql, cancellationToken: cancellationToken));
+    }
+
     private static string CreateTestRoot()
     {
         var path = Path.Combine(Path.GetTempPath(), "blockbuster-scan-tests", Guid.NewGuid().ToString("N"));
@@ -183,12 +272,14 @@ public sealed class LibraryScannerTests
     {
         private int _calls;
         public int Calls => _calls;
-        public Task<MediaProbeResult> ProbeAsync(string absolutePath, CancellationToken cancellationToken = default)
+        public bool BlockUntilCancelled { get; set; }
+        public async Task<MediaProbeResult> ProbeAsync(string absolutePath, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _calls);
+            if (BlockUntilCancelled) await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             if (failingName is not null && Path.GetFileName(absolutePath).Contains(failingName, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("stub corrupt media");
-            return Task.FromResult(new MediaProbeResult(TimeSpan.FromMinutes(100), "mp4", "h264", "aac", 1920, 1080, 2));
+            return new MediaProbeResult(TimeSpan.FromMinutes(100), "mp4", "h264", "aac", 1920, 1080, 2);
         }
     }
 

@@ -6,25 +6,41 @@ public sealed class MovieMatchResolver(IMovieCatalogStore catalog, IMovieMetadat
 {
     public async Task<MovieResolutionResult> ResolveAutomaticAsync(Guid mediaFileId, ParsedMovieFileName parsed, CancellationToken cancellationToken = default)
     {
-        if (parsed.Year is null || !metadata.IsConfigured)
+        var prepared = await PrepareAutomaticAsync(parsed, cancellationToken);
+        if (prepared.Metadata is null)
         {
-            await catalog.QueuePendingMatchAsync(mediaFileId, parsed, MovieMatcher.Decide(parsed, [], metadata.IsConfigured), cancellationToken);
+            await catalog.QueuePendingMatchAsync(mediaFileId, parsed, prepared.PendingDecision!, cancellationToken);
             return new(false, true, null);
         }
+        await catalog.ApplyMetadataAsync(mediaFileId, prepared.Metadata, prepared.LocalPosterPath, prepared.LocalBackdropPath, cancellationToken);
+        return new(true, false, null);
+    }
+
+    public async Task<ScanMatchResolution> PrepareAutomaticAsync(ParsedMovieFileName parsed, CancellationToken cancellationToken = default)
+    {
+        if (parsed.Year is null || !metadata.IsConfigured)
+            return new(parsed, MovieMatcher.Decide(parsed, [], metadata.IsConfigured), null, null, null);
         IReadOnlyList<MovieMetadataCandidate> candidates;
         try { candidates = await metadata.SearchAsync(parsed.Title, parsed.Year.Value, cancellationToken); }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            await catalog.QueuePendingMatchAsync(mediaFileId, parsed, new(MovieMatchOutcome.ProviderUnavailable, null, [], "TMDB could not be reached; retry matching later."), cancellationToken);
-            return new(false, true, exception.Message);
+            return new(parsed, new(MovieMatchOutcome.ProviderUnavailable, null, [], "TMDB could not be reached; retry matching later."), null, null, null);
         }
         var decision = MovieMatcher.Decide(parsed, candidates, metadata.IsConfigured);
-        if (decision.Accepted is null)
+        if (decision.Accepted is null) return new(parsed, decision, null, null, null);
+        try
         {
-            await catalog.QueuePendingMatchAsync(mediaFileId, parsed, decision, cancellationToken);
-            return new(false, true, null);
+            var movie = await metadata.GetAsync(decision.Accepted.TmdbId, cancellationToken);
+            if (movie is null) return new(parsed, decision with { Outcome = MovieMatchOutcome.ProviderUnavailable, Accepted = null, Explanation = "TMDB details were unavailable; retry matching later." }, null, null, null);
+            var poster = CacheIndependentlyAsync("poster", movie.TmdbId, movie.PosterPath, cancellationToken);
+            var backdrop = CacheIndependentlyAsync("backdrop", movie.TmdbId, movie.BackdropPath, cancellationToken);
+            await Task.WhenAll(poster, backdrop);
+            return new(parsed, null, movie, poster.Result, backdrop.Result);
         }
-        return await ResolveMetadataAsync(mediaFileId, decision.Accepted.TmdbId, parsed, decision, cancellationToken);
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return new(parsed, decision with { Outcome = MovieMatchOutcome.ProviderUnavailable, Accepted = null, Explanation = "TMDB details could not be loaded; retry matching later." }, null, null, null);
+        }
     }
 
     public Task<MovieResolutionResult> ResolveProviderSelectionAsync(Guid mediaFileId, int tmdbId, CancellationToken cancellationToken = default) =>

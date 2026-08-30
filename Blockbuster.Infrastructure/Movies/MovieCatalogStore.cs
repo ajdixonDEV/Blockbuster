@@ -152,7 +152,8 @@ public sealed class MovieCatalogStore(IDbConnectionFactory connections) : IMovie
         var observations = (await connection.QueryAsync<ObservationRow>(new CommandDefinition("""
             SELECT normalized_relative_path NormalizedPath,relative_path RelativePath,length,last_modified_at LastModifiedAt,
               duration_seconds DurationSeconds,container,video_codec VideoCodec,audio_codec AudioCodec,width,height,
-              audio_channels AudioChannels,probe_error ProbeError,assigned_media_file_id AssignedMediaFileId
+              audio_channels AudioChannels,probe_error ProbeError,assigned_media_file_id AssignedMediaFileId,
+              match_resolution_json MatchResolutionJson
             FROM library_scan_observations WHERE run_id=@RunId ORDER BY normalized_relative_path
             """, new { RunId = runId.ToString("N") }, transaction, cancellationToken: cancellationToken))).ToList();
         var promotions = new List<StagedScanPromotion>(observations.Count);
@@ -175,6 +176,8 @@ public sealed class MovieCatalogStore(IDbConnectionFactory connections) : IMovie
                   container=excluded.container,video_codec=excluded.video_codec,audio_codec=excluded.audio_codec,width=excluded.width,height=excluded.height,
                   audio_channels=excluded.audio_channels,probe_error=excluded.probe_error,is_available=1,last_seen_at=excluded.last_seen_at
                 """, new { Id = mediaFileId, LibrarySourceId = librarySourceId, RootPath = rootPath, MediaKind = (int)MediaKind.Movie, item.RelativePath, item.NormalizedPath, item.Length, item.LastModifiedAt, item.DurationSeconds, item.Container, item.VideoCodec, item.AudioCodec, item.Width, item.Height, item.AudioChannels, item.ProbeError, Now = now }, transaction, cancellationToken: cancellationToken));
+            if (changed)
+                await ApplyStagedResolutionAsync(connection, transaction, Guid.ParseExact(mediaFileId, "N"), item.RelativePath, item.ProbeError, item.MatchResolutionJson, now, cancellationToken);
             promotions.Add(new(Guid.ParseExact(mediaFileId, "N"), item.RelativePath, changed, existing is not null && existing.IsAssociated != 0, item.ProbeError));
         }
         var missing = await connection.ExecuteAsync(new CommandDefinition("""
@@ -327,6 +330,41 @@ public sealed class MovieCatalogStore(IDbConnectionFactory connections) : IMovie
 
     private static DateTimeOffset ParseDate(string value) => DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
+    private static async Task ApplyStagedResolutionAsync(DbConnection connection, DbTransaction transaction, Guid mediaFileId, string relativePath, string? probeError, string? json, string now, CancellationToken cancellationToken)
+    {
+        var parsed = MovieFilenameParser.Parse(relativePath);
+        if (probeError is not null)
+        {
+            await UpsertPendingAsync(connection, transaction, mediaFileId, parsed, new(MovieMatchOutcome.ProbeFailed, null, [], "ffprobe could not read this file; inspect the probe error and retry."), now, cancellationToken);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(json)) return;
+        var resolution = JsonSerializer.Deserialize<ScanMatchResolution>(json, JsonOptions) ?? throw new InvalidDataException("Invalid staged movie-match resolution.");
+        if (resolution.Metadata is null)
+        {
+            await UpsertPendingAsync(connection, transaction, mediaFileId, resolution.Parsed, resolution.PendingDecision ?? throw new InvalidDataException("Staged match has no result."), now, cancellationToken);
+            return;
+        }
+        var metadata = resolution.Metadata;
+        var proposedMovieId = Guid.NewGuid().ToString("N");
+        await connection.ExecuteAsync(new CommandDefinition("""
+            INSERT INTO movies(id,tmdb_id,provider_title,original_title,provider_year,overview,runtime_seconds,poster_provider_path,backdrop_provider_path,local_poster_path,local_backdrop_path,created_at,updated_at)
+            VALUES(@MovieId,@TmdbId,@Title,@OriginalTitle,@Year,@Overview,@RuntimeSeconds,@PosterPath,@BackdropPath,@LocalPosterPath,@LocalBackdropPath,@Now,@Now)
+            ON CONFLICT(tmdb_id) WHERE tmdb_id IS NOT NULL DO UPDATE SET provider_title=excluded.provider_title,original_title=excluded.original_title,provider_year=excluded.provider_year,overview=excluded.overview,runtime_seconds=excluded.runtime_seconds,poster_provider_path=excluded.poster_provider_path,backdrop_provider_path=excluded.backdrop_provider_path,local_poster_path=COALESCE(excluded.local_poster_path,movies.local_poster_path),local_backdrop_path=COALESCE(excluded.local_backdrop_path,movies.local_backdrop_path),updated_at=excluded.updated_at
+            """, new { MovieId = proposedMovieId, metadata.TmdbId, metadata.Title, metadata.OriginalTitle, metadata.Year, metadata.Overview, RuntimeSeconds = metadata.Runtime?.TotalSeconds, metadata.PosterPath, metadata.BackdropPath, LocalPosterPath = resolution.LocalPosterPath, LocalBackdropPath = resolution.LocalBackdropPath, Now = now }, transaction, cancellationToken: cancellationToken));
+        var movieId = await connection.QuerySingleAsync<string>(new CommandDefinition("SELECT id FROM movies WHERE tmdb_id=@TmdbId", new { metadata.TmdbId }, transaction, cancellationToken: cancellationToken));
+        await connection.ExecuteAsync(new CommandDefinition("DELETE FROM movie_genres WHERE movie_id=@MovieId; DELETE FROM movie_versions WHERE media_file_id=@MediaFileId; INSERT INTO movie_versions(movie_id,media_file_id) VALUES(@MovieId,@MediaFileId); DELETE FROM pending_movie_matches WHERE media_file_id=@MediaFileId", new { MovieId = movieId, MediaFileId = mediaFileId.ToString("N") }, transaction, cancellationToken: cancellationToken));
+        foreach (var genre in metadata.Genres.Distinct(StringComparer.OrdinalIgnoreCase))
+            await connection.ExecuteAsync(new CommandDefinition("INSERT INTO movie_genres(movie_id,genre) VALUES(@MovieId,@Genre)", new { MovieId = movieId, Genre = genre }, transaction, cancellationToken: cancellationToken));
+    }
+
+    private static Task<int> UpsertPendingAsync(DbConnection connection, DbTransaction transaction, Guid mediaFileId, ParsedMovieFileName parsed, MovieMatchDecision decision, string now, CancellationToken cancellationToken) =>
+        connection.ExecuteAsync(new CommandDefinition("""
+            INSERT INTO pending_movie_matches(media_file_id,parsed_title,parsed_year,outcome,explanation,candidates_json,updated_at)
+            VALUES(@MediaFileId,@Title,@Year,@Outcome,@Explanation,@Candidates,@Now)
+            ON CONFLICT(media_file_id) DO UPDATE SET parsed_title=excluded.parsed_title,parsed_year=excluded.parsed_year,outcome=excluded.outcome,explanation=excluded.explanation,candidates_json=excluded.candidates_json,updated_at=excluded.updated_at
+            """, new { MediaFileId = mediaFileId.ToString("N"), parsed.Title, parsed.Year, Outcome = (int)decision.Outcome, decision.Explanation, Candidates = JsonSerializer.Serialize(decision.Candidates, JsonOptions), Now = now }, transaction, cancellationToken: cancellationToken));
+
     private sealed class MediaFileRow
     {
         public string Id { get; init; } = string.Empty;
@@ -381,5 +419,6 @@ public sealed class MovieCatalogStore(IDbConnectionFactory connections) : IMovie
         public long? AudioChannels { get; init; }
         public string? ProbeError { get; init; }
         public string? AssignedMediaFileId { get; init; }
+        public string? MatchResolutionJson { get; init; }
     }
 }
