@@ -33,6 +33,7 @@ public sealed class PersistenceFoundationTests
             Assert.Equal("5", await ScalarAsync(connection, "SELECT COUNT(*) FROM SchemaVersions;", cancellationToken));
             Assert.Equal("1", await ScalarAsync(connection, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='system_state';", cancellationToken));
             Assert.Equal("1", await ScalarAsync(connection, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='media_files';", cancellationToken));
+            Assert.Equal("1", await ScalarAsync(connection, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='library_scan_observations';", cancellationToken));
         }
         finally
         {

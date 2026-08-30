@@ -23,7 +23,7 @@ This file is the short handoff for future implementation conversations. The deta
 - [x] 10 — Shared movie rooms
 - [x] 11 — Shared-room lifecycle hardening
 - [x] 12 — Atomic configured-root reconciliation
-- [ ] 13 — Catalog contract and resolver verification hardening
+- [x] 13 — Catalog contract and resolver verification hardening
 - [ ] 14 — Browser playback end-to-end verification
 
 ## Completed in milestone 01
@@ -66,7 +66,7 @@ This file is the short handoff for future implementation conversations. The deta
   Warning.
 - Added fatal startup logging and asynchronous clean-shutdown flushing.
 
-## Next milestone
+## Completed in milestone 12
 
 ### Milestone 12 — Atomic configured-root reconciliation
 
@@ -111,17 +111,17 @@ This file is the short handoff for future implementation conversations. The deta
   preservation, cancellation cleanup, stale-run recovery, and a forced SQLite
   trigger rollback after promotion starts.
 
-### Milestone 13 — Catalog contract and resolver verification hardening
+## Completed in milestone 13
 
-- Split `IMovieCatalogStore` into a read-only `IMovieCatalogReader` for
-  administrator scan/pending views and internal mutation/reconciliation storage.
-- Complete resolver coverage for automatic outcomes, direct provider selection,
-  provider/detail failures, local validation, independent artwork failures, and
-  identical scan/admin persistence results.
-- Add reconciliation integration coverage for successful promotion, failed-root
-  preservation, cancellation cleanup, stale-run recovery, and rollback triggered
-  after promotion begins but before run completion.
-- Extend migration coverage for the five-script upgrade and staging schema.
+- Separated the `IMovieCatalogReader` administrative query contract from the
+  mutation-only `IMovieCatalogStore`; the administration route only receives the
+  read contract, while scanning and matching receive mutations explicitly.
+- Verified staged reconciliation promotion, unavailable-root preservation,
+  cancellation cleanup, interrupted-run recovery, and transaction rollback.
+- Confirmed the five-script migration upgrade, including its staging table, in
+  the persistence integration suite.
+
+## Next milestone
 
 ### Milestone 14 — Browser playback end-to-end verification
 

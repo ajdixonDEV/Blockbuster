@@ -40,7 +40,7 @@ public sealed class LibraryScannerTests
             Assert.True(initial.Succeeded, Assert.Single(initial.Roots).Error);
             Assert.Equal(2, probe.Calls);
             var movieCount = await ScalarAsync(services, "SELECT COUNT(*) FROM movies", cancellationToken);
-            var unexpectedPending = await services.GetRequiredService<IMovieCatalogStore>().ListPendingMatchesAsync(cancellationToken);
+            var unexpectedPending = await services.GetRequiredService<IMovieCatalogReader>().ListPendingMatchesAsync(cancellationToken);
             Assert.True(movieCount == "1", $"Expected one movie; pending: {string.Join(" | ", unexpectedPending.Select(item => item.Outcome + ": " + item.Explanation))}");
             Assert.Equal("2", await ScalarAsync(services, "SELECT COUNT(*) FROM movie_versions", cancellationToken));
 
@@ -105,7 +105,7 @@ public sealed class LibraryScannerTests
             await services.GetRequiredService<IDatabaseMigrator>().MigrateAsync(cancellationToken);
 
             var result = await services.GetRequiredService<ILibraryScanner>().ScanAsync(ScanReason.Manual, cancellationToken);
-            var pending = await services.GetRequiredService<IMovieCatalogStore>().ListPendingMatchesAsync(cancellationToken);
+            var pending = await services.GetRequiredService<IMovieCatalogReader>().ListPendingMatchesAsync(cancellationToken);
 
             Assert.True(result.Succeeded);
             Assert.Equal(2, pending.Count);
@@ -131,7 +131,7 @@ public sealed class LibraryScannerTests
             await services.GetRequiredService<ILibraryScanner>().ScanAsync(ScanReason.Manual, cancellationToken);
 
             Assert.Equal(0, metadata.SearchCalls);
-            var pending = Assert.Single(await services.GetRequiredService<IMovieCatalogStore>().ListPendingMatchesAsync(cancellationToken));
+            var pending = Assert.Single(await services.GetRequiredService<IMovieCatalogReader>().ListPendingMatchesAsync(cancellationToken));
             Assert.Equal(MovieMatchOutcome.MissingYear, pending.Outcome);
         }
         finally { DeleteTestRoot(testRoot); }

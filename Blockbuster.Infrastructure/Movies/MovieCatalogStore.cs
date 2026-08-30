@@ -8,7 +8,7 @@ using Dapper;
 
 namespace Blockbuster.Infrastructure.Movies;
 
-public sealed class MovieCatalogStore(IDbConnectionFactory connections) : IMovieCatalogStore
+public sealed class MovieCatalogStore(IDbConnectionFactory connections) : IMovieCatalogStore, IMovieCatalogReader
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 

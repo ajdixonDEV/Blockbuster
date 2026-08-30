@@ -115,8 +115,8 @@ public interface IMovieMatchResolver
     Task<MovieResolutionResult> ResolveLocalMetadataAsync(Guid mediaFileId, string title, int? year, CancellationToken cancellationToken = default);
 }
 
+/// <summary>Internal catalog mutations used by scanning and match resolution.</summary>
 public interface IMovieCatalogStore
-    : IMovieCatalogReader
 {
     Task<MovieScanFile?> FindFileAsync(string librarySourceId, string rootPath, string normalizedRelativePath, CancellationToken cancellationToken = default);
     Task<MovieScanFile> UpsertFileAsync(MediaFileUpsert file, CancellationToken cancellationToken = default);
