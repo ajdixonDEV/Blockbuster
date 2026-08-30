@@ -5,74 +5,23 @@
 @attribute [Authorize]
 @implements IDisposable
 @inject NavigationManager Navigation
+@inject IMovieLibrary MovieLibrary
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>@Title · Blockbuster</PageTitle>
-
 <section class="catalog-page">
-    <div class="catalog-heading">
-        <div><BbBadge Variant="BadgeVariant.Outline">Our collection</BbBadge><h1>@Title</h1><p>@Description</p></div>
-        <BbBadge Variant="BadgeVariant.Secondary">0 titles</BbBadge>
-    </div>
-
-    @if (IsMovies)
-    {
-        <BbCard Class="catalog-toolbar">
-            <div class="search-control"><LucideIcon Name="search" Size="17" /><BbInput Placeholder="Search movies" Disabled="true" AriaLabel="Search movies" /></div>
-            <BbButton Variant="ButtonVariant.Outline" Disabled="true">All genres<LucideIcon Name="chevron-down" Size="15" /></BbButton>
-            <BbButton Variant="ButtonVariant.Outline" Disabled="true">Any year<LucideIcon Name="chevron-down" Size="15" /></BbButton>
-            <BbButton Variant="ButtonVariant.Outline" Disabled="true">Title A–Z<LucideIcon Name="arrow-down-a-z" Size="15" /></BbButton>
-        </BbCard>
-    }
-
-    <BbCard Class="catalog-empty">
-        <BbCardContent>
-            <div class="empty-icon"><LucideIcon Name="@Icon" Size="34" /></div>
-            <BbCardTitle>@EmptyTitle</BbCardTitle>
-            <BbCardDescription>@EmptyMessage</BbCardDescription>
-            @if (IsMovies)
-            {
-                <BbBadge Variant="BadgeVariant.Outline">Scanning arrives in a later milestone</BbBadge>
-            }
-            else
-            {
-                <BbButton Href="movies" Variant="ButtonVariant.Link">Browse movies instead<LucideIcon Name="arrow-right" Size="16" /></BbButton>
-            }
-        </BbCardContent>
-    </BbCard>
+ <div class="catalog-heading"><div><BbBadge Variant="BadgeVariant.Outline">Our collection</BbBadge><h1>@Title</h1><p>@Description</p></div><BbBadge Variant="BadgeVariant.Secondary">@(catalog?.Total ?? 0) titles</BbBadge></div>
+ @if(IsMovies){<form method="get" action="/movies" class="catalog-toolbar"><div class="search-control"><LucideIcon Name="search" Size="17"/><input name="q" value="@Search" placeholder="Search movies" aria-label="Search movies"/></div><select name="genre" aria-label="Genre"><option value="">All genres</option>@foreach(var x in catalog?.Genres??[]){<option value="@x" selected="@(x==Genre)">@x</option>}</select><select name="year" aria-label="Year"><option value="">Any year</option>@foreach(var x in catalog?.Years??[]){<option value="@x" selected="@(x==Year)">@x</option>}</select><select name="sort" aria-label="Sort"><option value="title" selected="@(Sort=="title")">Title A–Z</option><option value="year" selected="@(Sort=="year")">Newest year</option><option value="added" selected="@(Sort=="added")">Recently added</option></select><button type="submit">Apply</button></form>}
+ @if(!IsMovies||catalog is {Total:0}){<BbCard Class="catalog-empty"><BbCardContent><div class="empty-icon"><LucideIcon Name="@Icon" Size="34"/></div><BbCardTitle>@EmptyTitle</BbCardTitle><BbCardDescription>@EmptyMessage</BbCardDescription>@if(!IsMovies){<BbButton Href="movies" Variant="ButtonVariant.Link">Browse movies instead<LucideIcon Name="arrow-right" Size="16"/></BbButton>}</BbCardContent></BbCard>}
+ else if(catalog is not null){@if(activity.Count>0){<aside class="recent-activity"><span class="section-kicker">Recent activity</span>@foreach(var item in activity){<a href="/movies/@item.MovieId"><strong>@item.MovieTitle</strong><span>@ActivityLabel(item)</span></a>}</aside>}<div class="movie-grid">@foreach(var movie in catalog.Items){<a class="movie-card" href="/movies/@movie.Id"><div class="poster">@if(movie.PosterUrl is not null){<img src="@movie.PosterUrl" alt="Poster for @movie.Title" loading="lazy"/>}else{<LucideIcon Name="film" Size="42"/>}@if(movie.Progress is {TotalSeconds:>=30}&&movie.Duration is {TotalSeconds:>0}){<span class="poster-progress" style="width:@ProgressPercent(movie)%"></span>}</div><strong>@movie.Title</strong><span>@(movie.Year?.ToString()??"Year unknown") · @movie.AvailableVersions version@(movie.AvailableVersions==1?"":"s")</span></a>}</div>@if(catalog.Total>catalog.PageSize){<nav class="pager" aria-label="Movie pages">@if(catalog.Page>1){<a href="@PageUrl(catalog.Page-1)">← Previous</a>}<span>Page @catalog.Page of @TotalPages</span>@if(catalog.Page<TotalPages){<a href="@PageUrl(catalog.Page+1)">Next →</a>}</nav>}}
 </section>
-
-@code {
-    private string slug = string.Empty;
-
-    protected override void OnInitialized()
-    {
-        slug = GetSlug(Navigation.Uri);
-        Navigation.LocationChanged += HandleLocationChanged;
-    }
-
-    private void HandleLocationChanged(object? sender, LocationChangedEventArgs args)
-    {
-        var nextSlug = GetSlug(args.Location);
-        if (nextSlug == slug || nextSlug is not ("movies" or "tv" or "videos" or "music"))
-        {
-            return;
-        }
-
-        slug = nextSlug;
-        _ = InvokeAsync(StateHasChanged);
-    }
-
-    public void Dispose()
-    {
-        Navigation.LocationChanged -= HandleLocationChanged;
-    }
-
-    private static string GetSlug(string location) => new Uri(location).AbsolutePath.Trim('/').ToLowerInvariant();
-    private string Slug => slug;
-    private bool IsMovies => Slug == "movies";
-    private string Title => Slug switch { "movies" => "Movies", "tv" => "TV", "videos" => "Videos", "music" => "Music", _ => "Catalog" };
-    private string Description => IsMovies ? "Every piece of media we own, all in one place." : $"A home for your {Title.ToLowerInvariant()} collection.";
-    private string Icon => Slug switch { "movies" => "film", "tv" => "tv", "videos" => "clapperboard", "music" => "disc-3", _ => "library" };
-    private string EmptyTitle => IsMovies ? "The shelves are waiting" : $"{Title} is coming later";
-    private string EmptyMessage => IsMovies ? "Once a movie library is configured and scanned, posters will appear here." : "This library has a real home in the app, but ingestion and playback are outside the movie MVP.";
+@code{
+ [SupplyParameterFromQuery(Name="q")]public string? Search{get;set;} [SupplyParameterFromQuery]public string? Genre{get;set;} [SupplyParameterFromQuery]public int? Year{get;set;} [SupplyParameterFromQuery]public string Sort{get;set;}="title"; [SupplyParameterFromQuery]public int Page{get;set;}=1;
+ private string slug="movies";private MovieCatalogPage? catalog;private IReadOnlyList<PlaybackEvent> activity=[];
+ protected override void OnInitialized()=>Navigation.LocationChanged+=Changed;
+ protected override Task OnParametersSetAsync()=>LoadAsync();
+ private async Task LoadAsync(){slug=new Uri(Navigation.Uri).AbsolutePath.Trim('/').ToLowerInvariant();catalog=null;activity=[];if(IsMovies){var auth=await AuthenticationStateProvider.GetAuthenticationStateAsync();if(Guid.TryParse(auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,out var id)){catalog=await MovieLibrary.BrowseAsync(id,new(Search,Genre,Year,Sort switch{"year"=>MovieSort.YearDescending,"added"=>MovieSort.RecentlyAdded,_=>MovieSort.Title},Page));activity=await MovieLibrary.RecentActivityAsync(id,5);}}}
+ private void Changed(object?s,LocationChangedEventArgs e){var nextSlug=new Uri(e.Location).AbsolutePath.Trim('/').ToLowerInvariant();if(nextSlug==slug)return;_=InvokeAsync(async()=>{await LoadAsync();StateHasChanged();});}
+ public void Dispose()=>Navigation.LocationChanged-=Changed;
+ private bool IsMovies=>slug=="movies";private string Title=>slug switch{"movies"=>"Movies","tv"=>"TV","videos"=>"Videos","music"=>"Music",_=>"Catalog"};private string Description=>IsMovies?"Every piece of media we own, all in one place.":$"A home for your {Title.ToLowerInvariant()} collection.";private string Icon=>slug switch{"movies"=>"film","tv"=>"tv","videos"=>"clapperboard","music"=>"disc-3",_=>"library"};private string EmptyTitle=>IsMovies?"No movies match":$"{Title} is coming later";private string EmptyMessage=>IsMovies?"Try another filter, or ask an administrator to scan a movie library.":"This library has a real home in the app, but ingestion and playback are outside the movie MVP.";private int TotalPages=>catalog is null?1:(int)Math.Ceiling(catalog.Total/(double)catalog.PageSize);private string PageUrl(int page)=>Navigation.GetUriWithQueryParameters("/movies",new Dictionary<string,object?>{{"q",Search},{"genre",Genre},{"year",Year},{"sort",Sort},{"page",page}});private static double ProgressPercent(MovieCatalogItem x)=>Math.Clamp(x.Progress!.Value.TotalSeconds/x.Duration!.Value.TotalSeconds*100,0,100);private static string ActivityLabel(PlaybackEvent x)=>$"{(x.EventType=="ended"?"Finished":"Played")} at {x.Position:mm\\:ss}";
 }

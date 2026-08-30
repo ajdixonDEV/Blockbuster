@@ -38,6 +38,7 @@ coverage*.lcov
 [Dd]ata/
 [Cc]ache/
 [Bb]ackups/
+/Blockbuster/Media/
 *.db
 *.db-shm
 *.db-wal

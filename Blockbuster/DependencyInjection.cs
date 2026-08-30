@@ -1,5 +1,6 @@
 using Blockbuster.Components;
 using Blockbuster.Core.Movies;
+using Blockbuster.Core.Playback;
 using Blockbuster.Core.Profiles;
 using Blockbuster.Core.Scanning;
 using Blockbuster.Core.Security;
@@ -46,6 +47,8 @@ public static class DependencyInjection
             });
         }
 
+        ResolveRelativeLibraryRoots(builder);
+
         builder.Services.AddRazorComponents().AddInteractiveServerComponents();
         builder.Services.AddBlazorBlueprintComponents();
         builder.Services.AddBlockbusterInfrastructure(builder.Configuration);
@@ -53,6 +56,22 @@ public static class DependencyInjection
         AddAuthentication(builder.Services);
         AddLogging(builder);
         return builder;
+    }
+
+    private static void ResolveRelativeLibraryRoots(WebApplicationBuilder builder)
+    {
+        var resolvedRoots = builder.Configuration
+            .GetSection("Libraries:Sources")
+            .GetChildren()
+            .SelectMany(source => source.GetSection("MovieRoots").GetChildren())
+            .Where(root => !string.IsNullOrWhiteSpace(root.Value) && !Path.IsPathFullyQualified(root.Value))
+            .ToDictionary(
+                root => root.Path,
+                root => (string?)Path.GetFullPath(root.Value!, builder.Environment.ContentRootPath),
+                StringComparer.OrdinalIgnoreCase);
+
+        if (resolvedRoots.Count > 0)
+            builder.Configuration.AddInMemoryCollection(resolvedRoots);
     }
 
     public static WebApplication UseBlockbusterWeb(this WebApplication app)
@@ -90,8 +109,37 @@ public static class DependencyInjection
         app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
         MapAuthenticationEndpoints(app);
         MapAdministrationEndpoints(app);
+        MapPlaybackEndpoints(app);
         return app;
     }
+
+    private static void MapPlaybackEndpoints(WebApplication app)
+    {
+        app.MapMethods("/media/{mediaFileId:guid}", ["GET", "HEAD"], async (Guid mediaFileId, IMovieLibrary library, CancellationToken cancellationToken) =>
+        {
+            var source = await library.AuthorizeStreamAsync(mediaFileId, cancellationToken);
+            return source is null
+                ? Results.NotFound()
+                : Results.File(source.FullPath, source.ContentType, enableRangeProcessing: true, lastModified: source.LastModified);
+        }).RequireAuthorization();
+
+        app.MapGet("/artwork/{movieId:guid}/{kind}", async (Guid movieId, string kind, IMovieLibrary library, CancellationToken cancellationToken) =>
+        {
+            var source = await library.GetArtworkAsync(movieId, kind, cancellationToken);
+            return source is null ? Results.NotFound() : Results.File(source.FullPath, source.ContentType, lastModified: source.LastModified);
+        }).RequireAuthorization();
+
+        app.MapPost("/api/movies/{movieId:guid}/progress", async (Guid movieId, ProgressUpdate update, HttpContext context, IPlaybackProgressStore progress, CancellationToken cancellationToken) =>
+        {
+            var claim = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(claim, out var profileId)) return Results.Unauthorized();
+            if (!double.IsFinite(update.PositionSeconds) || update.PositionSeconds < 0) return Results.BadRequest();
+            var result = await progress.SaveAsync(profileId, movieId, TimeSpan.FromSeconds(update.PositionSeconds), update.ExpectedRevision, update.EventType ?? "progress", cancellationToken);
+            return result.Accepted ? Results.Ok(new { revision = result.Current.Revision, positionSeconds = result.Current.Position.TotalSeconds }) : Results.Conflict(new { revision = result.Current.Revision, positionSeconds = result.Current.Position.TotalSeconds });
+        }).RequireAuthorization().DisableAntiforgery();
+    }
+
+    private sealed record ProgressUpdate(double PositionSeconds, long ExpectedRevision, string? EventType);
 
     public static async Task<int> RunBlockbusterOperatorAsync(this WebApplication app, string[] args)
     {

@@ -19,10 +19,10 @@
                 <span class="online-dot"></span>Server online
             </BbBadge>
             <AuthorizeView>
-                <Authorized Context="profileState"><a class="profile-link" href="/profiles"><BbAvatar Size="AvatarSize.Small"><BbAvatarFallback>@profileState.User.Identity?.Name?[0]</BbAvatarFallback></BbAvatar>@profileState.User.Identity?.Name</a></Authorized>
+                <Authorized Context="profileState"><a class="profile-link" href="/profiles"><BbAvatar Size="AvatarSize.Small"><BbAvatarFallback>@profileState.User.Identity?.Name?[0]</BbAvatarFallback></BbAvatar>@profileState.User.Identity?.Name</a><form method="post" action="/auth/profile/clear" class="session-action"><button type="submit">Sign out</button></form></Authorized>
                 <NotAuthorized><a class="profile-link" href="/profiles"><BbAvatar Size="AvatarSize.Small"><BbAvatarFallback>?</BbAvatarFallback></BbAvatar>Choose profile</a></NotAuthorized>
             </AuthorizeView>
-            <a class="admin-link" href="/admin" aria-label="Administration"><LucideIcon Name="settings" Size="17" /></a>
+            <a class="admin-link" href="/admin" data-enhance-nav="false" aria-label="Administration" title="Administration"><LucideIcon Name="settings" Size="17" /></a>
         </div>
     </header>
 

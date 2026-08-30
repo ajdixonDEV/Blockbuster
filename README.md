@@ -28,9 +28,14 @@ dotnet run --project .\Blockbuster --no-launch-profile
 ```
 
 Use deployment-local JSON, environment variables, user secrets, or service
-configuration for machine paths and secrets. Storage path
-overrides such as `Storage__LogsPath` must be absolute; when omitted, generated
-state remains beneath `Storage__DataRoot`.
+configuration for machine paths and secrets. Storage path overrides such as
+`Storage__LogsPath` must be absolute; when omitted, generated state remains
+beneath `Storage__DataRoot`.
+
+Library movie roots may be absolute paths or paths relative to the application
+content root. Relative roots are convenient for a development media directory
+kept beside the program, such as `Media/Movies` in
+`appsettings.Development.json`.
 
 Logs are written to the console and to daily rolling files under the resolved
 logs path (`<data root>/logs` by default). File logs roll at 50 MB and retain the

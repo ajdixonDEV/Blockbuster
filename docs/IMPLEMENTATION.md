@@ -19,7 +19,7 @@ This file is the short handoff for future implementation conversations. The deta
 - [x] 06 — Windows Service/systemd hosting and operator documentation
 - [x] 07 — Profiles and administrator foundation
 - [x] 08 — Shared media primitives and movie scanning
-- [ ] 09 — Movie catalog and direct playback
+- [x] 09 — Movie catalog and direct playback
 - [ ] 10 — Shared movie rooms
 
 ## Completed in milestone 01
@@ -64,9 +64,9 @@ This file is the short handoff for future implementation conversations. The deta
 
 ## Next milestone
 
-Milestone 09 should build the searchable movie catalog, movie detail/version
-selection, authorized range streaming, direct-play compatibility checks, custom
-browser controls, per-profile progress/revisions, and capped playback history.
+Milestone 10 should add ephemeral shared movie rooms, active-room discovery,
+SignalR membership and serialized controls, resnapshot/reconnect behavior,
+drift correction, compatibility warnings, and five-minute empty-room expiry.
 
 ## Completed in milestone 07
 
@@ -116,6 +116,26 @@ browser controls, per-profile progress/revisions, and capped playback history.
   request behavior, fresh/upgraded migrations, new/changed/missing files,
   duplicate versions, corrupt probes, ambiguous matches, missing years, override
   preservation, and failed-root availability protection.
+
+## Completed in milestone 09
+
+- Replaced the Movies placeholder with a paged poster catalog supporting text,
+  genre, and year filters plus title, release-year, and recently-added sorting.
+- Added movie detail pages with cached artwork, effective local/provider metadata,
+  version facts, availability, resume actions, and conservative browser direct-play
+  compatibility messaging. Incompatible titles remain visible and explain that
+  transcoding is not available.
+- Added profile-authorized artwork and media-file-ID endpoints. Media resolution
+  is constrained beneath the scanned root and ASP.NET Core range processing
+  supplies GET/HEAD, partial, suffix, open, and invalid-range behavior without
+  routing bytes through the Blazor circuit.
+- Added a small JavaScript `HTMLMediaElement` wrapper with custom play, seek,
+  volume, mute, fullscreen, loading/error states, keyboard shortcuts, and resume.
+- Added migration-backed per-profile movie progress with optimistic server-issued
+  revisions and ten-second/pause/navigation/end saves. Playback events are capped
+  per profile and no watched/completed state is inferred.
+- Added integration coverage for progress revision conflicts, accepted updates,
+  event ordering/trimming, and the upgraded four-script migration set.
 
 ## Completed in milestone 04
 

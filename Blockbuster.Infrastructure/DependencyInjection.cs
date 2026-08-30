@@ -1,6 +1,7 @@
 using Blockbuster.Core.Media;
 using Blockbuster.Core.Movies;
 using Blockbuster.Core.Persistence;
+using Blockbuster.Core.Playback;
 using Blockbuster.Core.Profiles;
 using Blockbuster.Core.Scanning;
 using Blockbuster.Core.Security;
@@ -48,6 +49,9 @@ public static class DependencyInjection
         services.AddSingleton<IPinHasher, PinHasher>();
         services.AddSingleton<IAdministratorPinResetService, AdministratorPinService>();
         services.AddSingleton<IMovieCatalogStore, MovieCatalogStore>();
+        services.AddSingleton<MovieLibrary>();
+        services.AddSingleton<IMovieLibrary>(provider => provider.GetRequiredService<MovieLibrary>());
+        services.AddSingleton<IPlaybackProgressStore>(provider => provider.GetRequiredService<MovieLibrary>());
         services.AddSingleton<IMediaProbe, FfprobeMediaProbe>();
         services.AddHttpClient<IMovieMetadataProvider, TmdbMovieMetadataProvider>(client =>
         {
