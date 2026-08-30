@@ -1,5 +1,3 @@
-using Blockbuster.Core.Media;
-using Blockbuster.Core.Movies;
 using Blockbuster.Core.Scanning;
 using Blockbuster.Infrastructure.Configuration;
 using Microsoft.Extensions.Logging;
@@ -8,30 +6,13 @@ using Microsoft.Extensions.Options;
 namespace Blockbuster.Infrastructure.Scanning;
 
 public sealed class LibraryScanner(
-    IMovieCatalogStore catalog,
-    IMediaProbe probe,
-    IMovieMatchResolver resolver,
-    IOptions<LibrariesOptions> libraries,
-    IOptions<ScanningOptions> scanning,
-    ILogger<LibraryScanner> logger) : ILibraryScanner, IDisposable
+    IConfiguredRootReconciler reconciler,
+    IOptions<LibrariesOptions> libraries) : ILibraryScanner, IDisposable
 {
-    private static readonly Action<ILogger, string, string, Exception?> ProbeFailed =
-        LoggerMessage.Define<string, string>(LogLevel.Warning, new EventId(2101, nameof(ProbeFailed)), "Unable to probe movie file {LibrarySourceId}/{RelativePath}");
-    private static readonly Action<ILogger, string, string, int, int, int, Exception?> RootCompleted =
-        LoggerMessage.Define<string, string, int, int, int>(LogLevel.Information, new EventId(2102, nameof(RootCompleted)), "Movie root scan completed for {LibrarySourceId} at {RootPath}: {Discovered} files, {Changed} changed, {Missing} missing");
-    private static readonly Action<ILogger, string, string, Exception?> RootFailed =
-        LoggerMessage.Define<string, string>(LogLevel.Error, new EventId(2103, nameof(RootFailed)), "Movie root scan failed for {LibrarySourceId} at {RootPath}; availability was not reconciled");
-    private static readonly Action<ILogger, string, int, Exception?> SearchFailed =
-        LoggerMessage.Define<string, int>(LogLevel.Warning, new EventId(2104, nameof(SearchFailed)), "TMDB search failed for {Title} ({Year})");
-    private static readonly Action<ILogger, int, Exception?> ArtworkFailed =
-        LoggerMessage.Define<int>(LogLevel.Warning, new EventId(2105, nameof(ArtworkFailed)), "Artwork caching failed for TMDB movie {TmdbId}; metadata will remain usable");
-    private static readonly Action<ILogger, string, int, Exception?> DetailsFailed =
-        LoggerMessage.Define<string, int>(LogLevel.Warning, new EventId(2106, nameof(DetailsFailed)), "TMDB details failed for {Title} ({Year})");
     private readonly SemaphoreSlim _scanLock = new(1, 1);
     private readonly object _statusLock = new();
     private LibraryScannerStatus _status = new(false, null, null, null);
     private readonly LibrariesOptions _libraries = libraries.Value;
-    private readonly ScanningOptions _scanning = scanning.Value;
 
     public LibraryScannerStatus Status { get { lock (_statusLock) return _status; } }
 
@@ -42,10 +23,11 @@ public sealed class LibraryScanner(
         lock (_statusLock) _status = new(true, reason, started, _status.LastResult);
         try
         {
+            await reconciler.RecoverInterruptedRunsAsync(cancellationToken);
             var results = new List<LibraryRootScanResult>();
             foreach (var source in _libraries.Sources)
             foreach (var configuredRoot in source.MovieRoots)
-                results.Add(await ScanRootAsync(source.Id, configuredRoot, cancellationToken));
+                results.Add(await reconciler.ReconcileAsync(source.Id, configuredRoot, cancellationToken));
             var result = new LibraryScanResult(reason, started, DateTimeOffset.UtcNow, results);
             lock (_statusLock) _status = new(false, null, null, result);
             return result;
@@ -58,98 +40,6 @@ public sealed class LibraryScanner(
             }
             _scanLock.Release();
         }
-    }
-
-    private async Task<LibraryRootScanResult> ScanRootAsync(string sourceId, string configuredRoot, CancellationToken cancellationToken)
-    {
-        var root = Path.GetFullPath(configuredRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var runId = await catalog.StartScanRunAsync(sourceId, root, DateTimeOffset.UtcNow, cancellationToken);
-        var discovered = 0;
-        var changed = 0;
-        try
-        {
-            var files = EnumerateCompleteRoot(root);
-            discovered = files.Count;
-            var seen = new System.Collections.Concurrent.ConcurrentBag<string>();
-            using var concurrency = new SemaphoreSlim(_scanning.Concurrency, _scanning.Concurrency);
-            var tasks = files.Select(async absolutePath =>
-            {
-                await concurrency.WaitAsync(cancellationToken);
-                try
-                {
-                    var relative = Path.GetRelativePath(root, absolutePath);
-                    var normalized = NormalizeRelativePath(relative);
-                    seen.Add(normalized);
-                    var info = new FileInfo(absolutePath);
-                    var lastModified = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero);
-                    var existing = await catalog.FindFileAsync(sourceId, root, normalized, cancellationToken);
-                    if (existing is not null && existing.IsAvailable && existing.Length == info.Length && existing.LastModified == lastModified)
-                        return;
-
-                    Interlocked.Increment(ref changed);
-                    MediaProbeResult? probeResult = null;
-                    string? probeError = null;
-                    try { probeResult = await probe.ProbeAsync(absolutePath, cancellationToken); }
-                    catch (Exception exception) when (exception is not OperationCanceledException)
-                    {
-                        probeError = exception.Message;
-                        ProbeFailed(logger, sourceId, relative, exception);
-                    }
-
-                    var stored = await catalog.UpsertFileAsync(new MediaFileUpsert(
-                        sourceId, root, relative, normalized, info.Length, lastModified, probeResult, probeError), cancellationToken);
-                    var parsed = MovieFilenameParser.Parse(relative);
-                    if (probeError is not null)
-                    {
-                        await catalog.QueuePendingMatchAsync(stored.Id, parsed,
-                            new MovieMatchDecision(MovieMatchOutcome.ProbeFailed, null, [], "ffprobe could not read this file; inspect the probe error and retry."), cancellationToken);
-                        return;
-                    }
-                    if (existing?.IsAssociated == true) return;
-                    await resolver.ResolveAutomaticAsync(stored.Id, parsed, cancellationToken);
-                }
-                finally { concurrency.Release(); }
-            });
-            await Task.WhenAll(tasks);
-            var missing = await catalog.MarkMissingAsync(sourceId, root, seen.ToArray(), cancellationToken);
-            await catalog.CompleteScanRunAsync(runId, true, discovered, changed, missing, null, cancellationToken);
-            RootCompleted(logger, sourceId, root, discovered, changed, missing, null);
-            return new(sourceId, root, true, discovered, changed, missing, null);
-        }
-        catch (OperationCanceledException)
-        {
-            await catalog.CompleteScanRunAsync(runId, false, discovered, changed, 0, "Scan cancelled before reconciliation completed.", CancellationToken.None);
-            throw;
-        }
-        catch (Exception exception)
-        {
-            var error = exception.Message;
-            await catalog.CompleteScanRunAsync(runId, false, discovered, changed, 0, error, CancellationToken.None);
-            RootFailed(logger, sourceId, root, exception);
-            return new(sourceId, root, false, discovered, changed, 0, error);
-        }
-    }
-
-    private List<string> EnumerateCompleteRoot(string root)
-    {
-        if (!Directory.Exists(root)) throw new DirectoryNotFoundException($"Movie root '{root}' is unavailable.");
-        var extensions = _scanning.Extensions.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var options = new EnumerationOptions
-        {
-            RecurseSubdirectories = true,
-            IgnoreInaccessible = false,
-            ReturnSpecialDirectories = false,
-            AttributesToSkip = FileAttributes.ReparsePoint
-        };
-        return Directory.EnumerateFiles(root, "*", options).Where(path => extensions.Contains(Path.GetExtension(path))).ToList();
-    }
-
-    internal static string NormalizeRelativePath(string relativePath)
-    {
-        if (Path.IsPathFullyQualified(relativePath) || relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Any(part => part == ".."))
-            throw new InvalidDataException("A scanned media path escaped its configured root.");
-        var normalized = relativePath.Replace('\\', '/').TrimStart('/');
-        return OperatingSystem.IsWindows() ? normalized.ToUpperInvariant() : normalized;
     }
 
     public void Dispose() => _scanLock.Dispose();

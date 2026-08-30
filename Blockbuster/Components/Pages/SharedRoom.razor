@@ -5,6 +5,8 @@
 @inject IMovieLibrary MovieLibrary
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
+@inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.PlaybackOptions> Playback
+@inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.RoomsOptions> RoomsOptions
 
 <PageTitle>@(movie?.Title ?? "Shared room") · Blockbuster</PageTitle>
 @if (room is null || movie is null || version is null)
@@ -47,7 +49,8 @@ else
     {
         if (!firstRender || room is null || movie is null || version is null) return;
         module = await JS.InvokeAsync<IJSObjectReference>("import", "/js/sharedPlayer.js");
-        await module.InvokeVoidAsync("initialize", "shared-player", RoomId, movie.Id, movie.Progress?.TotalSeconds ?? 0, movie.ProgressRevision);
+        await module.InvokeVoidAsync("initialize", "shared-player", RoomId, movie.Id, movie.Progress?.TotalSeconds ?? 0, movie.ProgressRevision,
+            new { progressIntervalMs = (int)Playback.Value.ProgressInterval.TotalMilliseconds, resumeThresholdSeconds = Playback.Value.ResumeThreshold.TotalSeconds, driftIntervalMs = (int)RoomsOptions.Value.DriftCheckInterval.TotalMilliseconds, rateCorrectionThresholdSeconds = RoomsOptions.Value.RateCorrectionThreshold.TotalSeconds, hardSeekThresholdSeconds = RoomsOptions.Value.HardSeekThreshold.TotalSeconds });
     }
 
     private static string ParticipantLabel(IReadOnlyList<string> names) => names.Count == 0 ? "Waiting for viewers" : string.Join(", ", names);

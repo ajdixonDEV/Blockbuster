@@ -8,6 +8,7 @@ namespace Blockbuster.Infrastructure.Scanning;
 
 public sealed class LibraryScanHostedService(
     ILibraryScanner scanner,
+    IConfiguredRootReconciler reconciler,
     IOptions<ScanningOptions> options,
     ILogger<LibraryScanHostedService> logger) : BackgroundService
 {
@@ -17,6 +18,9 @@ public sealed class LibraryScanHostedService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Recovery is deliberately independent of ScanOnStartup: a restarted
+        // service must not leave a run looking active until its next schedule.
+        await reconciler.RecoverInterruptedRunsAsync(stoppingToken);
         if (_options.ScanOnStartup)
             await RunSafelyAsync(ScanReason.Startup, stoppingToken);
 

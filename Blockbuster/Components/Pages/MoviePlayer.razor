@@ -4,6 +4,7 @@
 @inject IMovieLibrary MovieLibrary
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
+@inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.PlaybackOptions> Playback
 <PageTitle>@(movie?.Title ?? "Player") · Blockbuster</PageTitle>
 @if (movie is not null && version is not null)
 {
@@ -52,7 +53,8 @@ else
             "movie-player",
             MovieId,
             movie.Progress?.TotalSeconds ?? 0,
-            movie.ProgressRevision);
+            movie.ProgressRevision,
+            new { progressIntervalMs = (int)Playback.Value.ProgressInterval.TotalMilliseconds, resumeThresholdSeconds = Playback.Value.ResumeThreshold.TotalSeconds });
     }
 
     public async ValueTask DisposeAsync()

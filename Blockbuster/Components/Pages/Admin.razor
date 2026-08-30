@@ -7,7 +7,7 @@
 @inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.ScanningOptions> Scanning
 @inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.MediaProbeOptions> Probe
 @inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.TmdbOptions> Tmdb
-@inject IMovieCatalogStore MovieCatalog
+@inject IMovieCatalogReader MovieCatalog
 @inject ILibraryScanner LibraryScanner
 
 <PageTitle>Administration · Blockbuster</PageTitle>

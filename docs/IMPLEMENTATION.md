@@ -22,6 +22,9 @@ This file is the short handoff for future implementation conversations. The deta
 - [x] 09 — Movie catalog and direct playback
 - [x] 10 — Shared movie rooms
 - [x] 11 — Shared-room lifecycle hardening
+- [ ] 12 — Atomic configured-root reconciliation (staging and recovery in progress)
+- [ ] 13 — Catalog contract and resolver verification hardening
+- [ ] 14 — Browser playback end-to-end verification
 
 ## Completed in milestone 01
 
@@ -65,8 +68,78 @@ This file is the short handoff for future implementation conversations. The deta
 
 ## Next milestone
 
-The remaining architecture-hardening work is browser playback consolidation,
-movie-match resolution, and staged configured-root reconciliation.
+### Milestone 12 — Atomic configured-root reconciliation
+
+- Introduce `IConfiguredRootReconciler.ReconcileAsync(sourceId, rootPath, cancellationToken)`.
+- Reduce `LibraryScanner` to scheduling, configured-root iteration, aggregation,
+  and status reporting.
+- Use migration 005's run-scoped observations to stage every discovered file,
+  probe result, assigned media ID, and match-resolution payload before changing
+  live catalog rows.
+- Promote one completed root in a single SQLite transaction: apply changed files
+  and match transitions, mark absent paths unavailable, complete run/state, and
+  delete the staging rows.
+- On cancellation or failure, mark the run unsuccessful and delete staging rows
+  while preserving live availability, associations, metadata, overrides, and
+  pending matches.
+- Recover at startup by marking incomplete runs interrupted and removing orphaned
+  observations before the first scan.
+
+## Milestone 12 progress
+
+- Introduced `IConfiguredRootReconciler` as the sole configured-root traversal
+  boundary; `LibraryScanner` now only schedules, iterates configured roots, and
+  reports aggregate status.
+- Added migration 005's run-scoped observation table and stage every discovered
+  media path, facts, probe result/error, and existing media-file assignment
+  before any root promotion work begins.
+- Promotion now uses one SQLite transaction to apply staged media facts, mark
+  absent paths unavailable, complete the run and configured-root state, and
+  remove the staged rows together.
+- Kept a failed or cancelled traversal isolated from availability reconciliation:
+  its run is completed unsuccessfully and its staged observations are removed.
+- Added stale-run recovery to both hosted-service startup and scan invocation,
+  marking interrupted runs unsuccessful and removing their observations.
+- Split the catalog's administration query surface into `IMovieCatalogReader`;
+  the administration page no longer receives scan mutation APIs.
+
+### Remaining for milestone 12
+
+- Persist canonical match-resolution payloads in observations and apply their
+  match transitions in the same promotion transaction.
+- Add the failure, cancellation, recovery, and transaction-rollback integration
+  coverage described in the architecture plan.
+
+### Milestone 13 — Catalog contract and resolver verification hardening
+
+- Split `IMovieCatalogStore` into a read-only `IMovieCatalogReader` for
+  administrator scan/pending views and internal mutation/reconciliation storage.
+- Complete resolver coverage for automatic outcomes, direct provider selection,
+  provider/detail failures, local validation, independent artwork failures, and
+  identical scan/admin persistence results.
+- Add reconciliation integration coverage for successful promotion, failed-root
+  preservation, cancellation cleanup, stale-run recovery, and rollback triggered
+  after promotion begins but before run completion.
+- Extend migration coverage for the five-script upgrade and staging schema.
+
+### Milestone 14 — Browser playback end-to-end verification
+
+- Add a serial Playwright 1.62.1 Chromium suite that starts the real app on
+  loopback with a disposable ignored data root, waits for migrations, seeds two
+  profiles and a movie/version, and serves the committed tiny MP4 fixture.
+- Cover direct controls/keyboard input, progress saves and conflicts, two-context
+  shared joining, participant updates, play/seek sync, reconnect/rejoin,
+  local-only volume/mute, and disposal removing room membership.
+- Capture Playwright traces and screenshots on failure; run the suite after the
+  playback/realtime milestone and again after reconciliation is complete.
+
+## Milestone 14 progress
+
+- Added pinned Playwright configuration with one serial worker, disposable
+  ignored data root, real loopback application startup, and traces/screenshots
+  retained on failure.
+- Added a passing real-app smoke test for migration/startup and the profile
+  selection route. Chromium is installed locally for this test environment.
 
 ## Completed in milestone 11
 

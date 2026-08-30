@@ -109,6 +109,9 @@ Desktop.ini
 # Restore/package caches
 packages/
 node_modules/
+.playwright-data/
+test-results/
+playwright-report/
 .nuget/
 .packages/
 /Blockbuster/appsettings.Development.json

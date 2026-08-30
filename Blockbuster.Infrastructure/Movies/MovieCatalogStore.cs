@@ -142,6 +142,54 @@ public sealed class MovieCatalogStore(IDbConnectionFactory connections) : IMovie
         await transaction.CommitAsync(cancellationToken);
     }
 
+    public async Task<(int MissingFiles, IReadOnlyList<StagedScanPromotion> Files)> PromoteStagedRunAsync(
+        Guid runId, string librarySourceId, string rootPath, int discoveredFiles, int changedFiles,
+        CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+        await using var connection = await connections.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        var observations = (await connection.QueryAsync<ObservationRow>(new CommandDefinition("""
+            SELECT normalized_relative_path NormalizedPath,relative_path RelativePath,length,last_modified_at LastModifiedAt,
+              duration_seconds DurationSeconds,container,video_codec VideoCodec,audio_codec AudioCodec,width,height,
+              audio_channels AudioChannels,probe_error ProbeError,assigned_media_file_id AssignedMediaFileId
+            FROM library_scan_observations WHERE run_id=@RunId ORDER BY normalized_relative_path
+            """, new { RunId = runId.ToString("N") }, transaction, cancellationToken: cancellationToken))).ToList();
+        var promotions = new List<StagedScanPromotion>(observations.Count);
+        foreach (var item in observations)
+        {
+            var existing = await connection.QuerySingleOrDefaultAsync<MediaFileRow>(new CommandDefinition("""
+                SELECT id,library_source_id LibrarySourceId,root_path RootPath,normalized_relative_path NormalizedRelativePath,
+                  length,last_modified_at LastModifiedAt,is_available IsAvailable,probe_error ProbeError,
+                  EXISTS(SELECT 1 FROM movie_versions v WHERE v.media_file_id=media_files.id) IsAssociated
+                FROM media_files WHERE library_source_id=@LibrarySourceId AND root_path=@RootPath AND normalized_relative_path=@NormalizedPath
+                """, new { LibrarySourceId = librarySourceId, RootPath = rootPath, item.NormalizedPath }, transaction, cancellationToken: cancellationToken));
+            var changed = existing is null || existing.IsAvailable == 0 || existing.Length != item.Length
+                || !string.Equals(existing.LastModifiedAt, item.LastModifiedAt, StringComparison.Ordinal);
+            var mediaFileId = existing?.Id ?? item.AssignedMediaFileId ?? Guid.NewGuid().ToString("N");
+            await connection.ExecuteAsync(new CommandDefinition("""
+                INSERT INTO media_files(id,library_source_id,root_path,media_kind,relative_path,normalized_relative_path,length,last_modified_at,duration_seconds,container,video_codec,audio_codec,width,height,audio_channels,probe_error,is_available,first_seen_at,last_seen_at)
+                VALUES(@Id,@LibrarySourceId,@RootPath,@MediaKind,@RelativePath,@NormalizedPath,@Length,@LastModifiedAt,@DurationSeconds,@Container,@VideoCodec,@AudioCodec,@Width,@Height,@AudioChannels,@ProbeError,1,@Now,@Now)
+                ON CONFLICT(library_source_id,root_path,normalized_relative_path) DO UPDATE SET
+                  relative_path=excluded.relative_path,length=excluded.length,last_modified_at=excluded.last_modified_at,duration_seconds=excluded.duration_seconds,
+                  container=excluded.container,video_codec=excluded.video_codec,audio_codec=excluded.audio_codec,width=excluded.width,height=excluded.height,
+                  audio_channels=excluded.audio_channels,probe_error=excluded.probe_error,is_available=1,last_seen_at=excluded.last_seen_at
+                """, new { Id = mediaFileId, LibrarySourceId = librarySourceId, RootPath = rootPath, MediaKind = (int)MediaKind.Movie, item.RelativePath, item.NormalizedPath, item.Length, item.LastModifiedAt, item.DurationSeconds, item.Container, item.VideoCodec, item.AudioCodec, item.Width, item.Height, item.AudioChannels, item.ProbeError, Now = now }, transaction, cancellationToken: cancellationToken));
+            promotions.Add(new(Guid.ParseExact(mediaFileId, "N"), item.RelativePath, changed, existing is not null && existing.IsAssociated != 0, item.ProbeError));
+        }
+        var missing = await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE media_files SET is_available=0 WHERE library_source_id=@LibrarySourceId AND root_path=@RootPath AND is_available=1
+              AND normalized_relative_path NOT IN (SELECT normalized_relative_path FROM library_scan_observations WHERE run_id=@RunId)
+            """, new { LibrarySourceId = librarySourceId, RootPath = rootPath, RunId = runId.ToString("N") }, transaction, cancellationToken: cancellationToken));
+        await connection.ExecuteAsync(new CommandDefinition("""
+            UPDATE library_scan_runs SET completed_at=@Now,succeeded=1,discovered_files=@DiscoveredFiles,changed_files=@ChangedFiles,missing_files=@MissingFiles,error=NULL WHERE id=@RunId;
+            UPDATE configured_library_scan_state SET last_completed_at=@Now,last_succeeded=1,last_error=NULL WHERE (library_source_id,root_path)=(SELECT library_source_id,root_path FROM library_scan_runs WHERE id=@RunId);
+            DELETE FROM library_scan_observations WHERE run_id=@RunId;
+            """, new { RunId = runId.ToString("N"), Now = now, DiscoveredFiles = discoveredFiles, ChangedFiles = changedFiles, MissingFiles = missing }, transaction, cancellationToken: cancellationToken));
+        await transaction.CommitAsync(cancellationToken);
+        return (missing, promotions);
+    }
+
     public async Task<IReadOnlyList<LibraryScanRun>> ListScanRunsAsync(int limit, CancellationToken cancellationToken = default)
     {
         await using var connection = await connections.OpenConnectionAsync(cancellationToken);
@@ -316,5 +364,22 @@ public sealed class MovieCatalogStore(IDbConnectionFactory connections) : IMovie
         public string Explanation { get; init; } = string.Empty;
         public string CandidatesJson { get; init; } = "[]";
         public string UpdatedAt { get; init; } = string.Empty;
+    }
+
+    private sealed class ObservationRow
+    {
+        public string NormalizedPath { get; init; } = string.Empty;
+        public string RelativePath { get; init; } = string.Empty;
+        public long Length { get; init; }
+        public string LastModifiedAt { get; init; } = string.Empty;
+        public double? DurationSeconds { get; init; }
+        public string? Container { get; init; }
+        public string? VideoCodec { get; init; }
+        public string? AudioCodec { get; init; }
+        public long? Width { get; init; }
+        public long? Height { get; init; }
+        public long? AudioChannels { get; init; }
+        public string? ProbeError { get; init; }
+        public string? AssignedMediaFileId { get; init; }
     }
 }

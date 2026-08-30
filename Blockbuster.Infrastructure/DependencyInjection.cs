@@ -50,7 +50,9 @@ public static class DependencyInjection
         services.AddSingleton<IAdministratorCredentialStore, AdministratorCredentialStore>();
         services.AddSingleton<IPinHasher, PinHasher>();
         services.AddSingleton<IAdministratorPinResetService, AdministratorPinService>();
-        services.AddSingleton<IMovieCatalogStore, MovieCatalogStore>();
+        services.AddSingleton<MovieCatalogStore>();
+        services.AddSingleton<IMovieCatalogStore>(provider => provider.GetRequiredService<MovieCatalogStore>());
+        services.AddSingleton<IMovieCatalogReader>(provider => provider.GetRequiredService<MovieCatalogStore>());
         services.AddSingleton<IMovieMatchResolver, MovieMatchResolver>();
         services.AddSingleton<MovieLibrary>();
         services.AddSingleton<IMovieLibrary>(provider => provider.GetRequiredService<MovieLibrary>());
@@ -64,6 +66,7 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
         services.AddHttpClient<IArtworkCache, ArtworkCache>(client => client.Timeout = TimeSpan.FromMinutes(2));
+        services.AddSingleton<IConfiguredRootReconciler, ConfiguredRootReconciler>();
         services.AddSingleton<ILibraryScanner, LibraryScanner>();
         services.AddSingleton<DatabaseMigrator>();
         services.AddSingleton<IDatabaseMigrator>(provider => provider.GetRequiredService<DatabaseMigrator>());

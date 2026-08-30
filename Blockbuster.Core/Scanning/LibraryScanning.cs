@@ -36,3 +36,13 @@ public interface ILibraryScanner
     LibraryScannerStatus Status { get; }
     Task<LibraryScanResult> ScanAsync(ScanReason reason, CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Reconciles one configured root.  A root is the unit of availability: an
+/// unsuccessful reconciliation must never make existing catalog files missing.
+/// </summary>
+public interface IConfiguredRootReconciler
+{
+    Task<LibraryRootScanResult> ReconcileAsync(string sourceId, string rootPath, CancellationToken cancellationToken = default);
+    Task RecoverInterruptedRunsAsync(CancellationToken cancellationToken = default);
+}

@@ -82,6 +82,8 @@ public sealed record LibraryScanRun(
     int MissingFiles,
     string? Error);
 
+public sealed record StagedScanPromotion(Guid MediaFileId, string RelativePath, bool IsChanged, bool IsAssociated, string? ProbeError);
+
 public interface IMovieMetadataProvider
 {
     bool IsConfigured { get; }
@@ -105,16 +107,23 @@ public interface IMovieMatchResolver
 }
 
 public interface IMovieCatalogStore
+    : IMovieCatalogReader
 {
     Task<MovieScanFile?> FindFileAsync(string librarySourceId, string rootPath, string normalizedRelativePath, CancellationToken cancellationToken = default);
     Task<MovieScanFile> UpsertFileAsync(MediaFileUpsert file, CancellationToken cancellationToken = default);
     Task<int> MarkMissingAsync(string librarySourceId, string rootPath, IReadOnlyCollection<string> seenNormalizedPaths, CancellationToken cancellationToken = default);
     Task<Guid> StartScanRunAsync(string librarySourceId, string rootPath, DateTimeOffset startedAt, CancellationToken cancellationToken = default);
     Task CompleteScanRunAsync(Guid runId, bool succeeded, int discoveredFiles, int changedFiles, int missingFiles, string? failureMessage, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<LibraryScanRun>> ListScanRunsAsync(int limit, CancellationToken cancellationToken = default);
+    Task<(int MissingFiles, IReadOnlyList<StagedScanPromotion> Files)> PromoteStagedRunAsync(Guid runId, string librarySourceId, string rootPath, int discoveredFiles, int changedFiles, CancellationToken cancellationToken = default);
     Task QueuePendingMatchAsync(Guid mediaFileId, ParsedMovieFileName parsed, MovieMatchDecision decision, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<PendingMovieMatch>> ListPendingMatchesAsync(CancellationToken cancellationToken = default);
     Task ApplyMetadataAsync(Guid mediaFileId, MovieMetadata metadata, string? localPosterPath, string? localBackdropPath, CancellationToken cancellationToken = default);
     Task ApplyLocalOverrideAsync(Guid mediaFileId, string title, int? year, CancellationToken cancellationToken = default);
     Task ClearPendingMatchAsync(Guid mediaFileId, CancellationToken cancellationToken = default);
+}
+
+/// <summary>Read-only catalog queries used by pages and operator views.</summary>
+public interface IMovieCatalogReader
+{
+    Task<IReadOnlyList<LibraryScanRun>> ListScanRunsAsync(int limit, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PendingMovieMatch>> ListPendingMatchesAsync(CancellationToken cancellationToken = default);
 }
