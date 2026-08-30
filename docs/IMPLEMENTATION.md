@@ -141,6 +141,9 @@ This file is the short handoff for future implementation conversations. The deta
   retained on failure.
 - Added a passing real-app smoke test for migration/startup and the profile
   selection route. Chromium is installed locally for this test environment.
+- Added browser-level controller coverage for media-control ARIA state, Space
+  and mute shortcuts, and entering and exiting fullscreen with the real module
+  loaded from the running application.
 
 ## Completed in milestone 11
 
