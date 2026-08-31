@@ -34,7 +34,10 @@
             <form method="post" action="/admin/profiles/create" class="compact-form">
                 <AntiforgeryToken />
                 <label>Profile name <input name="name" maxlength="40" required draggable="false" /></label>
-                <label>Optional 4-digit PIN <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" draggable="false" /></label>
+                <label>
+                    Optional 4-digit PIN
+                    <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" draggable="false" />
+                </label>
                 <button type="submit" draggable="false">Create profile</button>
             </form>
             @foreach (var profile in profiles)
@@ -44,7 +47,8 @@
                         <AntiforgeryToken />
                         <input type="hidden" name="id" value="@profile.Id" draggable="false" />
                         <input name="name" maxlength="40" value="@profile.Name" required aria-label="Profile name" draggable="false" />
-                        <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" placeholder="Replace PIN" aria-label="Replacement PIN" draggable="false" />
+                        <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password"
+                               placeholder="Replace PIN" aria-label="Replacement PIN" draggable="false" />
                         <label>
                             <input type="checkbox" name="clearPin" draggable="false" /> Clear PIN
                         </label>
@@ -53,7 +57,9 @@
                     <form method="post" action="/admin/profiles/delete">
                         <AntiforgeryToken />
                         <input type="hidden" name="id" value="@profile.Id" draggable="false" />
-                        <button class="danger" type="submit" onclick="return confirm('Delete this profile? This cannot be undone.');" draggable="false">Delete</button>
+                        <button class="danger" type="submit"
+                                onclick="return confirm('Delete this profile? This cannot be undone.');"
+                                draggable="false">Delete</button>
                     </form>
                 </div>
             }
@@ -73,7 +79,9 @@
                 <h2>Movie scanning</h2>
                 <form method="post" action="/admin/scans/request">
                     <AntiforgeryToken />
-                    <button type="submit" disabled="@LibraryScanner.Status.IsRunning" draggable="false">@(LibraryScanner.Status.IsRunning ? "Scanning…" : "Scan now")</button>
+                    <button type="submit" disabled="@LibraryScanner.Status.IsRunning" draggable="false">
+                        @(LibraryScanner.Status.IsRunning ? "Scanning…" : "Scan now")
+                    </button>
                 </form>
             </div>
             @if (scanRuns.Count == 0)
@@ -85,10 +93,15 @@
                 <div class="scan-run">
                     <div>
                         <strong>@run.LibrarySourceId</strong>
-                        <span class="status-@(run.CompletedAt is null ? "degraded" : run.Succeeded ? "healthy" : "unhealthy")">@(run.CompletedAt is null ? "Running" : run.Succeeded ? "Complete" : "Failed")</span>
+                        <span class="status-@(run.CompletedAt is null ? "degraded" : run.Succeeded ? "healthy" : "unhealthy")">
+                            @(run.CompletedAt is null ? "Running" : run.Succeeded ? "Complete" : "Failed")
+                        </span>
                     </div>
                     <code title="@run.RootPath">@run.RootPath</code>
-                    <small>@run.StartedAt.LocalDateTime.ToString("g") · @run.DiscoveredFiles found · @run.ChangedFiles changed · @run.MissingFiles missing</small>
+                    <small>
+                        @run.StartedAt.LocalDateTime.ToString("g") · @run.DiscoveredFiles found ·
+                        @run.ChangedFiles changed · @run.MissingFiles missing
+                    </small>
                     @if (!string.IsNullOrWhiteSpace(run.Error))
                     {
                         <small class="status-unhealthy">@run.Error</small>
@@ -120,7 +133,9 @@
                                     <AntiforgeryToken />
                                     <input type="hidden" name="mediaFileId" value="@match.MediaFileId" draggable="false" />
                                     <input type="hidden" name="tmdbId" value="@candidate.TmdbId" draggable="false" />
-                                    <button type="submit" draggable="false">Use @candidate.Title @(candidate.Year is null ? "" : $"({candidate.Year})")</button>
+                                    <button type="submit" draggable="false">
+                                        Use @candidate.Title @(candidate.Year is null ? "" : $"({candidate.Year})")
+                                    </button>
                                 </form>
                             }
                         </div>
@@ -135,7 +150,8 @@
                         <AntiforgeryToken />
                         <input type="hidden" name="mediaFileId" value="@match.MediaFileId" draggable="false" />
                         <input name="title" maxlength="200" value="@match.ParsedTitle" required aria-label="Local movie title" draggable="false" />
-                        <input type="number" min="1800" max="2200" name="year" value="@match.ParsedYear" placeholder="Year" aria-label="Local movie year" draggable="false" />
+                        <input type="number" min="1800" max="2200" name="year" value="@match.ParsedYear"
+                               placeholder="Year" aria-label="Local movie year" draggable="false" />
                         <button type="submit" draggable="false">Use local metadata</button>
                     </form>
                 </article>
@@ -163,7 +179,9 @@
                 <span>TMDB</span>
                 <strong>@(string.IsNullOrWhiteSpace(Tmdb.Value.Token) ? "Not configured" : "Configured")</strong>
             </div>
-            <p class="access-note">Host paths and operational settings are managed in configuration files or environment variables and cannot be edited here.</p>
+            <p class="access-note">
+                Host paths and operational settings are managed in configuration files or environment variables and cannot be edited here.
+            </p>
         </section>
     </div>
 </section>

@@ -54,7 +54,8 @@ public sealed class MovieMatchingTests
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var handler = new RecordingHandler("""
-            {"results":[{"id":949,"title":"Heat","release_date":"1995-12-15","overview":"A crime saga","poster_path":"/poster.jpg","backdrop_path":"/backdrop.jpg"}]}
+            {"results":[{"id":949,"title":"Heat","release_date":"1995-12-15","overview":"A crime saga",
+            "poster_path":"/poster.jpg","backdrop_path":"/backdrop.jpg"}]}
             """);
         using var client = new HttpClient(handler) { BaseAddress = new Uri("https://api.themoviedb.org/3/") };
         var provider = new TmdbMovieMetadataProvider(client, Options.Create(new TmdbOptions { Token = "secret-token", Locale = "en-US" }));

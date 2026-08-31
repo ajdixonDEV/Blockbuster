@@ -30,7 +30,9 @@ public sealed class SharedPlaybackHub(ISharedPlaybackCoordinator coordinator) : 
 
     public async Task SendCommand(string roomId, SharedPlaybackCommand command)
     {
-        if (!Context.Items.TryGetValue("room-session", out var value) || value is not ISharedRoomSession session || !string.Equals(session.RoomId, roomId, StringComparison.OrdinalIgnoreCase))
+        if (!Context.Items.TryGetValue("room-session", out var value)
+            || value is not ISharedRoomSession session
+            || !string.Equals(session.RoomId, roomId, StringComparison.OrdinalIgnoreCase))
             throw new HubException("Join the room before sending playback commands.");
         var snapshot = session.Apply(command)
             ?? throw new HubException("The command or room was invalid.");
@@ -39,7 +41,9 @@ public sealed class SharedPlaybackHub(ISharedPlaybackCoordinator coordinator) : 
 
     public async Task SetBuffering(string roomId, bool isBuffering, double positionSeconds)
     {
-        if (!Context.Items.TryGetValue("room-session", out var value) || value is not ISharedRoomSession session || !string.Equals(session.RoomId, roomId, StringComparison.OrdinalIgnoreCase))
+        if (!Context.Items.TryGetValue("room-session", out var value)
+            || value is not ISharedRoomSession session
+            || !string.Equals(session.RoomId, roomId, StringComparison.OrdinalIgnoreCase))
             throw new HubException("Join the room before reporting buffering.");
         var snapshot = session.SetBuffering(isBuffering, positionSeconds)
             ?? throw new HubException("The buffering state or room was invalid.");

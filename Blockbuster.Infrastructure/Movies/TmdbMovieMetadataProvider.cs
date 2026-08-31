@@ -16,7 +16,10 @@ public sealed class TmdbMovieMetadataProvider(HttpClient httpClient, IOptions<Tm
     {
         if (!IsConfigured)
             return [];
-        using var request = CreateRequest($"search/movie?query={Uri.EscapeDataString(title)}&year={year.ToString(CultureInfo.InvariantCulture)}&language={Uri.EscapeDataString(_options.Locale)}&include_adult=false");
+        var query = $"search/movie?query={Uri.EscapeDataString(title)}"
+            + $"&year={year.ToString(CultureInfo.InvariantCulture)}"
+            + $"&language={Uri.EscapeDataString(_options.Locale)}&include_adult=false";
+        using var request = CreateRequest(query);
         using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -68,5 +71,8 @@ public sealed class TmdbMovieMetadataProvider(HttpClient httpClient, IOptions<Tm
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 
     private static int? ParseYear(string? releaseDate) =>
-        releaseDate is { Length: >= 4 } && int.TryParse(releaseDate.AsSpan(0, 4), NumberStyles.None, CultureInfo.InvariantCulture, out var year) ? year : null;
+        releaseDate is { Length: >= 4 }
+        && int.TryParse(releaseDate.AsSpan(0, 4), NumberStyles.None, CultureInfo.InvariantCulture, out var year)
+            ? year
+            : null;
 }

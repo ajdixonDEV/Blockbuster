@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Blockbuster.Core.Persistence;
 using Blockbuster.Infrastructure;
 using Blockbuster.Infrastructure.Configuration;
@@ -31,14 +32,26 @@ public sealed class PersistenceFoundationTests
             Assert.Equal("1", await ScalarAsync(connection, "PRAGMA foreign_keys;", cancellationToken));
             Assert.Equal("5000", await ScalarAsync(connection, "PRAGMA busy_timeout;", cancellationToken));
             Assert.Equal("5", await ScalarAsync(connection, "SELECT COUNT(*) FROM SchemaVersions;", cancellationToken));
-            Assert.Equal("1", await ScalarAsync(connection, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='system_state';", cancellationToken));
-            Assert.Equal("1", await ScalarAsync(connection, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='media_files';", cancellationToken));
-            Assert.Equal("1", await ScalarAsync(connection, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='library_scan_observations';", cancellationToken));
+            await AssertTableExistsAsync(connection, "system_state", cancellationToken);
+            await AssertTableExistsAsync(connection, "media_files", cancellationToken);
+            await AssertTableExistsAsync(connection, "library_scan_observations", cancellationToken);
         }
         finally
         {
             DeleteTestRoot(testRoot);
         }
+    }
+
+    private static async Task AssertTableExistsAsync(
+        DbConnection connection,
+        string tableName,
+        CancellationToken cancellationToken)
+    {
+        var count = await ScalarAsync(
+            connection,
+            $"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{tableName}';",
+            cancellationToken);
+        Assert.Equal("1", count);
     }
 
     [Fact]

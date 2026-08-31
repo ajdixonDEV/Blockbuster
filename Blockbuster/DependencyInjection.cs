@@ -6,6 +6,7 @@ using Blockbuster.Infrastructure.Configuration;
 using Blockbuster.Infrastructure.Operations;
 using Blockbuster.Infrastructure.Persistence;
 using BlazorBlueprint.Components;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -89,6 +90,7 @@ public static class DependencyInjection
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseAntiforgery();
+        app.Use(RejectInvalidAntiforgeryRequestsAsync);
         app.MapStaticAssets();
 
         HealthEndpoints.Map(app);
@@ -98,6 +100,20 @@ public static class DependencyInjection
         PlaybackEndpoints.Map(app);
         SharedRoomEndpoints.Map(app);
         return app;
+    }
+
+    private static async Task RejectInvalidAntiforgeryRequestsAsync(
+        HttpContext context,
+        RequestDelegate next)
+    {
+        var validation = context.Features.Get<IAntiforgeryValidationFeature>();
+        if (validation is { IsValid: false })
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            return;
+        }
+
+        await next(context);
     }
 
     public static async Task<int> RunBlockbusterOperatorAsync(

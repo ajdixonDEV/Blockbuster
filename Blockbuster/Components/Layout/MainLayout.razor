@@ -41,7 +41,9 @@
                             <BbAvatarFallback>@profileState.User.Identity?.Name?[0]</BbAvatarFallback>
                         </BbAvatar>@profileState.User.Identity?.Name
                     </a>
-                    <form method="post" action="@(profileState.User.HasClaim("administrator", "true") ? "/auth/admin/logout" : "/auth/profile/clear")" class="session-action">
+                    <form method="post"
+                          action="@(profileState.User.HasClaim("administrator", "true") ? "/auth/admin/logout" : "/auth/profile/clear")"
+                          class="session-action">
                         <AntiforgeryToken />
                         <button type="submit" draggable="false">Sign out</button>
                     </form>

@@ -242,7 +242,10 @@ public sealed class MovieLibrary(
                     COALESCE(file.height, 0) DESC,
                     file.relative_path COLLATE NOCASE
                 """,
-                new { Id = movieId.ToString("N") },
+                new
+                {
+                    Id = movieId.ToString("N")
+                },
                 cancellationToken: cancellationToken));
         return new MovieDetails(
             Guid.ParseExact(row.Id, "N"),
@@ -278,7 +281,10 @@ public sealed class MovieLibrary(
                 WHERE file.id = @Id
                   AND file.is_available = 1
                 """,
-                new { Id = mediaFileId.ToString("N") },
+                new
+                {
+                    Id = mediaFileId.ToString("N")
+                },
                 cancellationToken: cancellationToken));
         if (row is null)
         {
@@ -325,7 +331,10 @@ public sealed class MovieLibrary(
         var path = await connection.QuerySingleOrDefaultAsync<string?>(
             new CommandDefinition(
                 sql,
-                new { Id = movieId.ToString("N") },
+                new
+                {
+                    Id = movieId.ToString("N")
+                },
                 cancellationToken: cancellationToken));
         var fullPath = ResolveArtworkPath(path);
         if (fullPath is null || !File.Exists(fullPath))
@@ -748,13 +757,31 @@ public sealed class MovieLibrary(
     {
         public string Id { get; init; } = string.Empty;
         public string Title { get; init; } = string.Empty;
-        public long? Year { get; init; }
-        public string? Overview { get; init; }
-        public string? PosterPath { get; init; }
+        public long? Year
+        {
+            get; init;
+        }
+        public string? Overview
+        {
+            get; init;
+        }
+        public string? PosterPath
+        {
+            get; init;
+        }
         public string AddedAt { get; init; } = string.Empty;
-        public long AvailableVersions { get; init; }
-        public double? ProgressSeconds { get; init; }
-        public double? DurationSeconds { get; init; }
+        public long AvailableVersions
+        {
+            get; init;
+        }
+        public double? ProgressSeconds
+        {
+            get; init;
+        }
+        public double? DurationSeconds
+        {
+            get; init;
+        }
         public string Genres { get; init; } = string.Empty;
     }
 
@@ -762,13 +789,34 @@ public sealed class MovieLibrary(
     {
         public string Id { get; init; } = string.Empty;
         public string Title { get; init; } = string.Empty;
-        public long? Year { get; init; }
-        public string? OriginalTitle { get; init; }
-        public string? Overview { get; init; }
-        public string? PosterPath { get; init; }
-        public string? BackdropPath { get; init; }
-        public double? ProgressSeconds { get; init; }
-        public long ProgressRevision { get; init; }
+        public long? Year
+        {
+            get; init;
+        }
+        public string? OriginalTitle
+        {
+            get; init;
+        }
+        public string? Overview
+        {
+            get; init;
+        }
+        public string? PosterPath
+        {
+            get; init;
+        }
+        public string? BackdropPath
+        {
+            get; init;
+        }
+        public double? ProgressSeconds
+        {
+            get; init;
+        }
+        public long ProgressRevision
+        {
+            get; init;
+        }
         public string Genres { get; init; } = string.Empty;
     }
 
@@ -776,16 +824,43 @@ public sealed class MovieLibrary(
     {
         public string MediaFileId { get; init; } = string.Empty;
         public string RelativePath { get; init; } = string.Empty;
-        public string? Container { get; init; }
-        public string? VideoCodec { get; init; }
-        public string? AudioCodec { get; init; }
-        public long? Width { get; init; }
-        public long? Height { get; init; }
-        public long? AudioChannels { get; init; }
-        public double? DurationSeconds { get; init; }
-        public long Length { get; init; }
+        public string? Container
+        {
+            get; init;
+        }
+        public string? VideoCodec
+        {
+            get; init;
+        }
+        public string? AudioCodec
+        {
+            get; init;
+        }
+        public long? Width
+        {
+            get; init;
+        }
+        public long? Height
+        {
+            get; init;
+        }
+        public long? AudioChannels
+        {
+            get; init;
+        }
+        public double? DurationSeconds
+        {
+            get; init;
+        }
+        public long Length
+        {
+            get; init;
+        }
         public string LastModifiedAt { get; init; } = string.Empty;
-        public long IsAvailable { get; init; }
+        public long IsAvailable
+        {
+            get; init;
+        }
     }
 
     private sealed class StreamRow
@@ -793,13 +868,22 @@ public sealed class MovieLibrary(
         public string MovieId { get; init; } = string.Empty;
         public string RootPath { get; init; } = string.Empty;
         public string RelativePath { get; init; } = string.Empty;
-        public string? Container { get; init; }
+        public string? Container
+        {
+            get; init;
+        }
     }
 
     private sealed class ProgressRow
     {
-        public double PositionSeconds { get; init; }
-        public long Revision { get; init; }
+        public double PositionSeconds
+        {
+            get; init;
+        }
+        public long Revision
+        {
+            get; init;
+        }
         public string UpdatedAt { get; init; } = string.Empty;
     }
 
@@ -809,7 +893,10 @@ public sealed class MovieLibrary(
         public string MovieId { get; init; } = string.Empty;
         public string MovieTitle { get; init; } = string.Empty;
         public string EventType { get; init; } = string.Empty;
-        public double PositionSeconds { get; init; }
+        public double PositionSeconds
+        {
+            get; init;
+        }
         public string OccurredAt { get; init; } = string.Empty;
     }
 }

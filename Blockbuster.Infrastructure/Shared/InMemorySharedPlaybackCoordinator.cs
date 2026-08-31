@@ -76,7 +76,10 @@ public sealed class InMemorySharedPlaybackCoordinator : ISharedPlaybackCoordinat
 
     private SharedRoomSnapshot? Apply(string roomId, string membershipId, string profileName, SharedPlaybackCommand command)
     {
-        if (!double.IsFinite(command.PositionSeconds) || command.PositionSeconds < 0 || !double.IsFinite(command.PlaybackRate) || command.PlaybackRate is < .25 or > 4)
+        if (!double.IsFinite(command.PositionSeconds)
+            || command.PositionSeconds < 0
+            || !double.IsFinite(command.PlaybackRate)
+            || command.PlaybackRate is < .25 or > 4)
             return null;
         lock (_gate)
         {
@@ -203,8 +206,15 @@ public sealed class InMemorySharedPlaybackCoordinator : ISharedPlaybackCoordinat
         {
             get;
         }
-        public SharedRoomSnapshot? Apply(SharedPlaybackCommand command) => Volatile.Read(ref _left) == 0 ? _owner.Apply(RoomId, _membershipId, _profileName, command) : null;
-        public SharedRoomSnapshot? SetBuffering(bool isBuffering, double positionSeconds) => Volatile.Read(ref _left) == 0 ? _owner.SetBuffering(RoomId, _membershipId, _profileName, isBuffering, positionSeconds) : null;
+        public SharedRoomSnapshot? Apply(SharedPlaybackCommand command) =>
+            Volatile.Read(ref _left) == 0
+                ? _owner.Apply(RoomId, _membershipId, _profileName, command)
+                : null;
+
+        public SharedRoomSnapshot? SetBuffering(bool isBuffering, double positionSeconds) =>
+            Volatile.Read(ref _left) == 0
+                ? _owner.SetBuffering(RoomId, _membershipId, _profileName, isBuffering, positionSeconds)
+                : null;
         public SharedRoomSnapshot? Leave() => Interlocked.Exchange(ref _left, 1) == 0 ? _owner.Leave(RoomId, _membershipId) : null;
         public void Dispose() => Leave();
     }

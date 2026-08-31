@@ -34,7 +34,8 @@
                     <strong>@profile.Name</strong>
                     @if (profile.HasPin)
                     {
-                        <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" placeholder="4-digit PIN" required aria-label="PIN for @profile.Name" draggable="false" />
+                        <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password"
+                               placeholder="4-digit PIN" required aria-label="PIN for @profile.Name" draggable="false" />
                     }
                     <button type="submit" draggable="false">Watch as @profile.Name</button>
                 </form>

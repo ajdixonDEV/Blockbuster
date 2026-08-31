@@ -41,10 +41,17 @@ public sealed class LibraryScannerTests
             Assert.Equal(2, probe.Calls);
             var movieCount = await ScalarAsync(services, "SELECT COUNT(*) FROM movies", cancellationToken);
             var unexpectedPending = await services.GetRequiredService<IMovieCatalogReader>().ListPendingMatchesAsync(cancellationToken);
-            Assert.True(movieCount == "1", $"Expected one movie; pending: {string.Join(" | ", unexpectedPending.Select(item => item.Outcome + ": " + item.Explanation))}");
+            var pendingSummary = string.Join(
+                " | ",
+                unexpectedPending.Select(item => item.Outcome + ": " + item.Explanation));
+            Assert.True(movieCount == "1", $"Expected one movie; pending: {pendingSummary}");
             Assert.Equal("2", await ScalarAsync(services, "SELECT COUNT(*) FROM movie_versions", cancellationToken));
 
-            var firstMediaId = Guid.ParseExact((await ScalarAsync(services, "SELECT id FROM media_files WHERE relative_path LIKE 'disc-a%'", cancellationToken))!, "N");
+            var firstMediaIdValue = await ScalarAsync(
+                services,
+                "SELECT id FROM media_files WHERE relative_path LIKE 'disc-a%'",
+                cancellationToken);
+            var firstMediaId = Guid.ParseExact(firstMediaIdValue!, "N");
             await services
                 .GetRequiredService<IMovieMatchTransitionStore>()
                 .ApplyLocalAssociationAsync(
@@ -65,7 +72,75 @@ public sealed class LibraryScannerTests
             Assert.Equal("1", await ScalarAsync(services, "SELECT COUNT(*) FROM media_files WHERE is_available=0", cancellationToken));
             Assert.Equal("2", await ScalarAsync(services, "SELECT COUNT(*) FROM movie_versions", cancellationToken));
         }
-        finally { DeleteTestRoot(testRoot); }
+        finally
+        {
+            DeleteTestRoot(testRoot);
+        }
+    }
+
+    [Fact]
+    public async Task PromotionAppliesSeveralChangedAndNewObservationsTogether()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var root = CreateTestRoot();
+        var mediaRoot = Path.Combine(root, "movies");
+        Directory.CreateDirectory(mediaRoot);
+        var first = Path.Combine(mediaRoot, "Heat (1995) - first.mp4");
+        var second = Path.Combine(mediaRoot, "Heat (1995) - second.mp4");
+        await File.WriteAllTextAsync(first, "first", cancellationToken);
+        await File.WriteAllTextAsync(second, "second", cancellationToken);
+        var probe = new StubProbe();
+
+        try
+        {
+            await using var services = CreateServices(
+                root,
+                mediaRoot,
+                probe,
+                new StubMetadataProvider("Heat", 1995, 949));
+            await services.GetRequiredService<IDatabaseMigrator>().MigrateAsync(cancellationToken);
+            var scanner = services.GetRequiredService<ILibraryScanner>();
+            Assert.True((await scanner.ScanAsync(ScanReason.Manual, cancellationToken)).Succeeded);
+
+            await File.AppendAllTextAsync(first, "-changed", cancellationToken);
+            await File.AppendAllTextAsync(second, "-changed", cancellationToken);
+            File.SetLastWriteTimeUtc(first, DateTime.UtcNow.AddSeconds(2));
+            File.SetLastWriteTimeUtc(second, DateTime.UtcNow.AddSeconds(2));
+            await File.WriteAllTextAsync(
+                Path.Combine(mediaRoot, "Heat (1995) - third.mp4"),
+                "third",
+                cancellationToken);
+            await File.WriteAllTextAsync(
+                Path.Combine(mediaRoot, "Heat (1995) - fourth.mp4"),
+                "fourth",
+                cancellationToken);
+
+            var result = await scanner.ScanAsync(ScanReason.Manual, cancellationToken);
+
+            Assert.True(result.Succeeded, Assert.Single(result.Roots).Error);
+            Assert.Equal(6, probe.Calls);
+            Assert.Equal("4", await ScalarAsync(services, "SELECT COUNT(*) FROM media_files", cancellationToken));
+            Assert.Equal(
+                "4",
+                await ScalarAsync(
+                    services,
+                    "SELECT COUNT(*) FROM media_files WHERE container='mp4' AND video_codec='h264'",
+                    cancellationToken));
+            Assert.Equal("4", await ScalarAsync(services, "SELECT COUNT(*) FROM movie_versions", cancellationToken));
+            Assert.Equal(
+                "4",
+                await ScalarAsync(
+                    services,
+                    "SELECT COUNT(*) FROM movie_versions WHERE movie_id=(SELECT id FROM movies WHERE tmdb_id=949)",
+                    cancellationToken));
+            Assert.Equal(
+                "0",
+                await ScalarAsync(services, "SELECT COUNT(*) FROM library_scan_observations", cancellationToken));
+        }
+        finally
+        {
+            DeleteTestRoot(root);
+        }
     }
 
     [Fact]
@@ -91,7 +166,10 @@ public sealed class LibraryScannerTests
             Assert.Equal("h264", await ScalarAsync(services, "SELECT video_codec FROM media_files", cancellationToken));
             Assert.Equal("1", await ScalarAsync(services, "SELECT COUNT(*) FROM movie_versions", cancellationToken));
         }
-        finally { DeleteTestRoot(root); }
+        finally
+        {
+            DeleteTestRoot(root);
+        }
     }
 
     [Fact]
@@ -118,7 +196,10 @@ public sealed class LibraryScannerTests
             Assert.Equal(movieId, await ScalarAsync(services, "SELECT movie_id FROM movie_versions", cancellationToken));
             Assert.Equal("mp4", await ScalarAsync(services, "SELECT container FROM media_files", cancellationToken));
         }
-        finally { DeleteTestRoot(root); }
+        finally
+        {
+            DeleteTestRoot(root);
+        }
     }
 
     [Fact]
@@ -145,9 +226,15 @@ public sealed class LibraryScannerTests
 
             Assert.True(string.IsNullOrEmpty(await ScalarAsync(services, "SELECT container FROM media_files", cancellationToken)));
             Assert.NotNull(await ScalarAsync(services, "SELECT probe_error FROM media_files", cancellationToken));
-            Assert.Contains((await services.GetRequiredService<IMovieCatalogReader>().ListPendingMatchesAsync(cancellationToken)), item => item.Outcome == MovieMatchOutcome.ProbeFailed);
+            var pendingMatches = await services
+                .GetRequiredService<IMovieCatalogReader>()
+                .ListPendingMatchesAsync(cancellationToken);
+            Assert.Contains(pendingMatches, item => item.Outcome == MovieMatchOutcome.ProbeFailed);
         }
-        finally { DeleteTestRoot(root); }
+        finally
+        {
+            DeleteTestRoot(root);
+        }
     }
 
     [Fact]
@@ -174,7 +261,10 @@ public sealed class LibraryScannerTests
             Assert.Equal("1", await ScalarAsync(services, "SELECT COUNT(*) FROM media_files WHERE is_available=1", cancellationToken));
             Assert.Equal("1", await ScalarAsync(services, "SELECT COUNT(*) FROM library_scan_runs WHERE succeeded=0", cancellationToken));
         }
-        finally { DeleteTestRoot(testRoot); }
+        finally
+        {
+            DeleteTestRoot(testRoot);
+        }
     }
 
     [Fact]
@@ -200,7 +290,10 @@ public sealed class LibraryScannerTests
             Assert.Contains(pending, item => item.Outcome == MovieMatchOutcome.ProbeFailed);
             Assert.Contains(pending, item => item.Outcome == MovieMatchOutcome.Ambiguous);
         }
-        finally { DeleteTestRoot(testRoot); }
+        finally
+        {
+            DeleteTestRoot(testRoot);
+        }
     }
 
     [Fact]
@@ -222,7 +315,10 @@ public sealed class LibraryScannerTests
             var pending = Assert.Single(await services.GetRequiredService<IMovieCatalogReader>().ListPendingMatchesAsync(cancellationToken));
             Assert.Equal(MovieMatchOutcome.MissingYear, pending.Outcome);
         }
-        finally { DeleteTestRoot(testRoot); }
+        finally
+        {
+            DeleteTestRoot(testRoot);
+        }
     }
 
     [Fact]
@@ -244,7 +340,13 @@ public sealed class LibraryScannerTests
             var originalMovieId = await ScalarAsync(services, "SELECT id FROM movies", cancellationToken);
             await File.AppendAllTextAsync(file, "-changed", cancellationToken);
             File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddSeconds(2));
-            await ExecuteAsync(services, "CREATE TRIGGER reject_media_update BEFORE UPDATE ON media_files BEGIN SELECT RAISE(ABORT, 'forced promotion rollback'); END;", cancellationToken);
+            const string rejectMediaUpdate = """
+                CREATE TRIGGER reject_media_update BEFORE UPDATE ON media_files
+                BEGIN
+                    SELECT RAISE(ABORT, 'forced promotion rollback');
+                END;
+                """;
+            await ExecuteAsync(services, rejectMediaUpdate, cancellationToken);
 
             var result = await scanner.ScanAsync(ScanReason.Manual, cancellationToken);
 
@@ -253,7 +355,10 @@ public sealed class LibraryScannerTests
             Assert.Equal(originalMovieId, await ScalarAsync(services, "SELECT id FROM movies", cancellationToken));
             Assert.Equal("0", await ScalarAsync(services, "SELECT COUNT(*) FROM library_scan_observations", cancellationToken));
         }
-        finally { DeleteTestRoot(root); }
+        finally
+        {
+            DeleteTestRoot(root);
+        }
     }
 
     [Fact]
@@ -282,7 +387,10 @@ public sealed class LibraryScannerTests
             Assert.Equal("1", await ScalarAsync(services, "SELECT COUNT(*) FROM media_files WHERE is_available=1", cancellationToken));
             Assert.Equal("0", await ScalarAsync(services, "SELECT COUNT(*) FROM library_scan_observations", cancellationToken));
         }
-        finally { DeleteTestRoot(root); }
+        finally
+        {
+            DeleteTestRoot(root);
+        }
     }
 
     [Fact]
@@ -339,10 +447,17 @@ public sealed class LibraryScannerTests
 
             await services.GetRequiredService<IConfiguredRootReconciler>().RecoverInterruptedRunsAsync(cancellationToken);
 
-            Assert.Equal("1", await ScalarAsync(services, "SELECT COUNT(*) FROM library_scan_runs WHERE completed_at IS NOT NULL AND succeeded=0", cancellationToken));
+            var failedRuns = await ScalarAsync(
+                services,
+                "SELECT COUNT(*) FROM library_scan_runs WHERE completed_at IS NOT NULL AND succeeded=0",
+                cancellationToken);
+            Assert.Equal("1", failedRuns);
             Assert.Equal("0", await ScalarAsync(services, "SELECT COUNT(*) FROM library_scan_observations", cancellationToken));
         }
-        finally { DeleteTestRoot(root); }
+        finally
+        {
+            DeleteTestRoot(root);
+        }
     }
 
     private static ServiceProvider CreateServices(string testRoot, string mediaRoot, IMediaProbe probe, IMovieMetadataProvider metadata)
@@ -395,7 +510,9 @@ public sealed class LibraryScannerTests
     {
         SqliteConnection.ClearAllPools();
         if (Directory.Exists(testRoot))
+        {
             Directory.Delete(testRoot, recursive: true);
+        }
     }
 
     private sealed class StubProbe(string? failingName = null) : IMediaProbe
@@ -414,9 +531,15 @@ public sealed class LibraryScannerTests
         {
             Interlocked.Increment(ref _calls);
             if (BlockUntilCancelled)
+            {
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+
             if (FailAll || (failingName is not null && Path.GetFileName(absolutePath).Contains(failingName, StringComparison.OrdinalIgnoreCase)))
+            {
                 throw new InvalidDataException("stub corrupt media");
+            }
+
             return new MediaProbeResult(TimeSpan.FromMinutes(100), "mp4", "h264", "aac", 1920, 1080, 2);
         }
     }
@@ -430,7 +553,10 @@ public sealed class LibraryScannerTests
             get; init;
         }
         public bool IsConfigured => true;
-        public Task<IReadOnlyList<MovieMetadataCandidate>> SearchAsync(string searchTitle, int searchYear, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<MovieMetadataCandidate>> SearchAsync(
+            string searchTitle,
+            int searchYear,
+            CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _searchCalls);
             IReadOnlyList<MovieMetadataCandidate> result = ReturnAmbiguous
@@ -444,6 +570,10 @@ public sealed class LibraryScannerTests
 
     private sealed class StubArtworkCache : IArtworkCache
     {
-        public Task<string?> CacheAsync(string kind, int tmdbId, string? providerPath, CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
+        public Task<string?> CacheAsync(
+            string kind,
+            int tmdbId,
+            string? providerPath,
+            CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
     }
 }

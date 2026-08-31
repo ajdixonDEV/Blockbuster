@@ -91,7 +91,8 @@ public sealed class ProfileStore(IDbConnectionFactory connections) : IProfileSto
     }
 
     private static Profile ToProfile(ProfileRow row) => new(Guid.ParseExact(row.Id, "N"), row.Name, row.PinHash is not null,
-        DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture), DateTimeOffset.Parse(row.UpdatedAt, System.Globalization.CultureInfo.InvariantCulture));
+        DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture),
+        DateTimeOffset.Parse(row.UpdatedAt, System.Globalization.CultureInfo.InvariantCulture));
 
     private sealed record ProfileRow(string Id, string Name, string? PinHash, string CreatedAt, string UpdatedAt);
 }

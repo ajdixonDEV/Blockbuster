@@ -40,7 +40,14 @@ public sealed record ArtworkSource(string FullPath, string ContentType, DateTime
 
 public sealed record PlaybackProgress(Guid ProfileId, Guid MovieId, TimeSpan Position, long Revision, DateTimeOffset UpdatedAt);
 public sealed record PlaybackProgressResult(bool Accepted, PlaybackProgress Current);
-public sealed record PlaybackEvent(Guid Id, Guid ProfileId, Guid MovieId, string MovieTitle, string EventType, TimeSpan Position, DateTimeOffset OccurredAt);
+public sealed record PlaybackEvent(
+    Guid Id,
+    Guid ProfileId,
+    Guid MovieId,
+    string MovieTitle,
+    string EventType,
+    TimeSpan Position,
+    DateTimeOffset OccurredAt);
 
 public interface IMovieLibrary
 {
@@ -54,5 +61,11 @@ public interface IMovieLibrary
 public interface IPlaybackProgressStore
 {
     Task<PlaybackProgress?> GetProgressAsync(Guid profileId, Guid movieId, CancellationToken cancellationToken = default);
-    Task<PlaybackProgressResult> SaveAsync(Guid profileId, Guid movieId, TimeSpan position, long expectedRevision, string eventType, CancellationToken cancellationToken = default);
+    Task<PlaybackProgressResult> SaveAsync(
+        Guid profileId,
+        Guid movieId,
+        TimeSpan position,
+        long expectedRevision,
+        string eventType,
+        CancellationToken cancellationToken = default);
 }

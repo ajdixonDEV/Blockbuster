@@ -19,6 +19,20 @@ if (!dataRoot || !path.isAbsolute(dataRoot)) {
 const baseUrl = `http://127.0.0.1:${port}`;
 const mediaRoot = path.join(dataRoot, "media");
 const fixture = path.join(mediaRoot, "Browser Fixture (2024).mp4");
+const applicationDll = path.join(
+  __dirname,
+  "Blockbuster",
+  "bin",
+  "Debug",
+  "net10.0",
+  "Blockbuster.dll",
+);
+const bundledWindowsProbe = "C:\\Tools\\ffmpeg\\bin\\ffprobe.exe";
+const mediaProbe =
+  process.env.MediaProbe__ExecutablePath ||
+  (process.platform === "win32" && fs.existsSync(bundledWindowsProbe)
+    ? bundledWindowsProbe
+    : "ffprobe");
 fs.mkdirSync(mediaRoot, { recursive: true });
 fs.copyFileSync(path.join(__dirname, "tests", "fixtures", "Browser Fixture (2024).mp4"), fixture);
 
@@ -33,9 +47,7 @@ module.exports = defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command:
-      "dotnet run --project Blockbuster --no-build --no-restore " +
-      `--no-launch-profile -- --urls ${baseUrl}`,
+    command: `dotnet exec "${applicationDll}" --urls ${baseUrl}`,
     url: `${baseUrl}/health/live`,
     timeout: 60_000,
     reuseExistingServer: false,
@@ -45,7 +57,7 @@ module.exports = defineConfig({
       Libraries__Sources__0__Id: "browser-fixtures",
       Libraries__Sources__0__MovieRoots__0: mediaRoot,
       Scanning__ScanOnStartup: "false",
-      MediaProbe__ExecutablePath: process.env.MediaProbe__ExecutablePath || "ffprobe",
+      MediaProbe__ExecutablePath: mediaProbe,
       Playback__ProgressInterval: "00:00:00.100",
       Rooms__DriftCheckInterval: "00:00:00.100",
       Authentication__BootstrapPin: "1234",
