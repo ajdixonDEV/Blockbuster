@@ -45,7 +45,13 @@ public sealed class LibraryScannerTests
             Assert.Equal("2", await ScalarAsync(services, "SELECT COUNT(*) FROM movie_versions", cancellationToken));
 
             var firstMediaId = Guid.ParseExact((await ScalarAsync(services, "SELECT id FROM media_files WHERE relative_path LIKE 'disc-a%'", cancellationToken))!, "N");
-            await services.GetRequiredService<IMovieCatalogStore>().ApplyLocalOverrideAsync(firstMediaId, "My Arrival", 2016, cancellationToken);
+            await services
+                .GetRequiredService<IMovieMatchTransitionStore>()
+                .ApplyLocalAssociationAsync(
+                    firstMediaId,
+                    "My Arrival",
+                    2016,
+                    cancellationToken);
             await File.AppendAllTextAsync(first, "-changed", cancellationToken);
             File.SetLastWriteTimeUtc(first, DateTime.UtcNow.AddSeconds(2));
             await scanner.ScanAsync(ScanReason.Scheduled, cancellationToken);
@@ -290,8 +296,46 @@ public sealed class LibraryScannerTests
         {
             await using var services = CreateServices(root, mediaRoot, new StubProbe(), new StubMetadataProvider());
             await services.GetRequiredService<IDatabaseMigrator>().MigrateAsync(cancellationToken);
-            var runId = await services.GetRequiredService<IMovieCatalogStore>().StartScanRunAsync("movies-main", mediaRoot, DateTimeOffset.UtcNow, cancellationToken);
-            await ExecuteAsync(services, $"INSERT INTO library_scan_observations(run_id,normalized_relative_path,relative_path,length,last_modified_at) VALUES('{runId:N}','STALE.MP4','stale.mp4',1,'now')", cancellationToken);
+            var runId = Guid.NewGuid();
+            await ExecuteAsync(
+                services,
+                $"""
+                INSERT INTO configured_library_scan_state(
+                    library_source_id,
+                    root_path,
+                    last_started_at
+                )
+                VALUES('movies-main', '{SqlLiteral(mediaRoot)}', 'now');
+
+                INSERT INTO library_scan_runs(
+                    id,
+                    library_source_id,
+                    root_path,
+                    started_at
+                )
+                VALUES(
+                    '{runId:N}',
+                    'movies-main',
+                    '{SqlLiteral(mediaRoot)}',
+                    'now'
+                );
+
+                INSERT INTO library_scan_observations(
+                    run_id,
+                    normalized_relative_path,
+                    relative_path,
+                    length,
+                    last_modified_at
+                )
+                VALUES(
+                    '{runId:N}',
+                    'STALE.MP4',
+                    'stale.mp4',
+                    1,
+                    'now'
+                );
+                """,
+                cancellationToken);
 
             await services.GetRequiredService<IConfiguredRootReconciler>().RecoverInterruptedRunsAsync(cancellationToken);
 
@@ -344,22 +388,33 @@ public sealed class LibraryScannerTests
         return path;
     }
 
+    private static string SqlLiteral(string value) =>
+        value.Replace("'", "''", StringComparison.Ordinal);
+
     private static void DeleteTestRoot(string testRoot)
     {
         SqliteConnection.ClearAllPools();
-        if (Directory.Exists(testRoot)) Directory.Delete(testRoot, recursive: true);
+        if (Directory.Exists(testRoot))
+            Directory.Delete(testRoot, recursive: true);
     }
 
     private sealed class StubProbe(string? failingName = null) : IMediaProbe
     {
         private int _calls;
         public int Calls => _calls;
-        public bool BlockUntilCancelled { get; set; }
-        public bool FailAll { get; set; }
+        public bool BlockUntilCancelled
+        {
+            get; set;
+        }
+        public bool FailAll
+        {
+            get; set;
+        }
         public async Task<MediaProbeResult> ProbeAsync(string absolutePath, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _calls);
-            if (BlockUntilCancelled) await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            if (BlockUntilCancelled)
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             if (FailAll || (failingName is not null && Path.GetFileName(absolutePath).Contains(failingName, StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidDataException("stub corrupt media");
             return new MediaProbeResult(TimeSpan.FromMinutes(100), "mp4", "h264", "aac", 1920, 1080, 2);
@@ -370,7 +425,10 @@ public sealed class LibraryScannerTests
     {
         private int _searchCalls;
         public int SearchCalls => _searchCalls;
-        public bool ReturnAmbiguous { get; init; }
+        public bool ReturnAmbiguous
+        {
+            get; init;
+        }
         public bool IsConfigured => true;
         public Task<IReadOnlyList<MovieMetadataCandidate>> SearchAsync(string searchTitle, int searchYear, CancellationToken cancellationToken = default)
         {

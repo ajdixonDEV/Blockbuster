@@ -1,0 +1,28 @@
+<PageTitle>@Title · Blockbuster</PageTitle>
+<section class="catalog-page">
+    <div class="catalog-heading">
+        <div>
+            <BbBadge Variant="BadgeVariant.Outline">Our collection</BbBadge>
+            <h1>@Title</h1>
+            <p>A home for your @Title.ToLowerInvariant() collection.</p>
+        </div>
+        <BbBadge Variant="BadgeVariant.Secondary">0 titles</BbBadge>
+    </div>
+    <BbCard Class="catalog-empty">
+        <BbCardContent>
+            <div class="empty-icon">
+                <LucideIcon Name="@Icon" Size="34" />
+            </div>
+            <BbCardTitle>@Title is coming later</BbCardTitle>
+            <BbCardDescription>This library has a real home in the app, but ingestion and playback are outside the movie MVP.</BbCardDescription>
+            <BbButton Href="movies" Variant="ButtonVariant.Link" draggable="false">
+                Browse movies instead<LucideIcon Name="arrow-right" Size="16" />
+            </BbButton>
+        </BbCardContent>
+    </BbCard>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public required string Title { get; set; }
+    [Parameter, EditorRequired] public required string Icon { get; set; }
+}

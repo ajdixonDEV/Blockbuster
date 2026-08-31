@@ -20,7 +20,10 @@ public sealed class ProfileStore(IDbConnectionFactory connections) : IProfileSto
         await using var connection = await connections.OpenConnectionAsync(cancellationToken);
         var row = await connection.QuerySingleOrDefaultAsync<ProfileRow>(new CommandDefinition(
             "SELECT id, name, pin_hash PinHash, created_at CreatedAt, updated_at UpdatedAt FROM profiles WHERE id = @Id",
-            new { Id = id.ToString("N") }, cancellationToken: cancellationToken));
+            new
+            {
+                Id = id.ToString("N")
+            }, cancellationToken: cancellationToken));
         return row is null ? null : ToProfile(row);
     }
 
@@ -31,7 +34,13 @@ public sealed class ProfileStore(IDbConnectionFactory connections) : IProfileSto
         await using var connection = await connections.OpenConnectionAsync(cancellationToken);
         await connection.ExecuteAsync(new CommandDefinition(
             "INSERT INTO profiles(id,name,pin_hash,created_at,updated_at) VALUES (@Id,@Name,@PinHash,@Now,@Now)",
-            new { Id = id.ToString("N"), Name = NormalizeName(name), PinHash = pinHash, Now = now }, cancellationToken: cancellationToken));
+            new
+            {
+                Id = id.ToString("N"),
+                Name = NormalizeName(name),
+                PinHash = pinHash,
+                Now = now
+            }, cancellationToken: cancellationToken));
         return id;
     }
 
@@ -42,27 +51,42 @@ public sealed class ProfileStore(IDbConnectionFactory connections) : IProfileSto
             UPDATE profiles SET name=@Name,
               pin_hash=CASE WHEN @ClearPin=1 THEN NULL WHEN @PinHash IS NOT NULL THEN @PinHash ELSE pin_hash END,
               updated_at=@Now WHERE id=@Id
-            """, new { Id = id.ToString("N"), Name = NormalizeName(name), PinHash = replacementPinHash, ClearPin = clearPin ? 1 : 0, Now = DateTimeOffset.UtcNow.ToString("O") }, cancellationToken: cancellationToken));
-        if (changed == 0) throw new KeyNotFoundException("Profile was not found.");
+            """, new
+        {
+            Id = id.ToString("N"),
+            Name = NormalizeName(name),
+            PinHash = replacementPinHash,
+            ClearPin = clearPin ? 1 : 0,
+            Now = DateTimeOffset.UtcNow.ToString("O")
+        }, cancellationToken: cancellationToken));
+        if (changed == 0)
+            throw new KeyNotFoundException("Profile was not found.");
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await using var connection = await connections.OpenConnectionAsync(cancellationToken);
-        await connection.ExecuteAsync(new CommandDefinition("DELETE FROM profiles WHERE id=@Id", new { Id = id.ToString("N") }, cancellationToken: cancellationToken));
+        await connection.ExecuteAsync(new CommandDefinition("DELETE FROM profiles WHERE id=@Id", new
+        {
+            Id = id.ToString("N")
+        }, cancellationToken: cancellationToken));
     }
 
     public async Task<string?> GetPinHashAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await using var connection = await connections.OpenConnectionAsync(cancellationToken);
         return await connection.QuerySingleOrDefaultAsync<string?>(new CommandDefinition(
-            "SELECT pin_hash FROM profiles WHERE id=@Id", new { Id = id.ToString("N") }, cancellationToken: cancellationToken));
+            "SELECT pin_hash FROM profiles WHERE id=@Id", new
+            {
+                Id = id.ToString("N")
+            }, cancellationToken: cancellationToken));
     }
 
     private static string NormalizeName(string name)
     {
         var value = name.Trim();
-        if (value.Length is < 1 or > 40) throw new ArgumentException("Profile name must be between 1 and 40 characters.", nameof(name));
+        if (value.Length is < 1 or > 40)
+            throw new ArgumentException("Profile name must be between 1 and 40 characters.", nameof(name));
         return value;
     }
 
@@ -89,6 +113,10 @@ public sealed class AdministratorCredentialStore(IDbConnectionFactory connection
         await connection.ExecuteAsync(new CommandDefinition("""
             INSERT INTO administrator_credential(singleton_id,pin_hash,updated_at) VALUES (1,@Hash,@Now)
             ON CONFLICT(singleton_id) DO UPDATE SET pin_hash=excluded.pin_hash, updated_at=excluded.updated_at
-            """, new { Hash = hash, Now = DateTimeOffset.UtcNow.ToString("O") }, cancellationToken: cancellationToken));
+            """, new
+        {
+            Hash = hash,
+            Now = DateTimeOffset.UtcNow.ToString("O")
+        }, cancellationToken: cancellationToken));
     }
 }

@@ -37,6 +37,15 @@ public sealed class SharedPlaybackHub(ISharedPlaybackCoordinator coordinator) : 
         await Clients.Group(roomId).SendAsync("StateChanged", snapshot);
     }
 
+    public async Task SetBuffering(string roomId, bool isBuffering, double positionSeconds)
+    {
+        if (!Context.Items.TryGetValue("room-session", out var value) || value is not ISharedRoomSession session || !string.Equals(session.RoomId, roomId, StringComparison.OrdinalIgnoreCase))
+            throw new HubException("Join the room before reporting buffering.");
+        var snapshot = session.SetBuffering(isBuffering, positionSeconds)
+            ?? throw new HubException("The buffering state or room was invalid.");
+        await Clients.Group(roomId).SendAsync("StateChanged", snapshot);
+    }
+
     public Task<SharedRoomSnapshot> GetSnapshot(string roomId) =>
         Task.FromResult(coordinator.GetSnapshot(roomId) ?? throw new HubException("The shared room no longer exists."));
 
@@ -45,7 +54,8 @@ public sealed class SharedPlaybackHub(ISharedPlaybackCoordinator coordinator) : 
         if (Context.Items.TryGetValue("room-session", out var value) && value is ISharedRoomSession session)
         {
             var snapshot = session.Leave();
-            if (snapshot is not null) await Clients.Group(session.RoomId).SendAsync("RoomUpdated", snapshot);
+            if (snapshot is not null)
+                await Clients.Group(session.RoomId).SendAsync("RoomUpdated", snapshot);
         }
         await base.OnDisconnectedAsync(exception);
     }

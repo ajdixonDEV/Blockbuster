@@ -21,7 +21,8 @@ public sealed class InMemorySharedPlaybackCoordinator : ISharedPlaybackCoordinat
 
     public IReadOnlyList<SharedRoomSummary> ListRooms()
     {
-        lock (_gate) return _rooms.Values.Select(ReadSummary)
+        lock (_gate)
+            return _rooms.Values.Select(ReadSummary)
             .OrderBy(room => room.MovieTitle, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
@@ -30,7 +31,10 @@ public sealed class InMemorySharedPlaybackCoordinator : ISharedPlaybackCoordinat
         lock (_gate)
         {
             string id;
-            do { id = Convert.ToHexString(Guid.NewGuid().ToByteArray())[..8].ToLowerInvariant(); }
+            do
+            {
+                id = Convert.ToHexString(Guid.NewGuid().ToByteArray())[..8].ToLowerInvariant();
+            }
             while (_rooms.ContainsKey(id));
             var room = new Room(id, movieId, mediaFileId, movieTitle, _timeProvider.GetUtcNow());
             _rooms.Add(id, room);
@@ -40,14 +44,16 @@ public sealed class InMemorySharedPlaybackCoordinator : ISharedPlaybackCoordinat
 
     public SharedRoomSnapshot? GetSnapshot(string roomId)
     {
-        lock (_gate) return _rooms.TryGetValue(roomId, out var room) ? Snapshot(room) : null;
+        lock (_gate)
+            return _rooms.TryGetValue(roomId, out var room) ? Snapshot(room) : null;
     }
 
     public ISharedRoomSession? JoinRoom(string roomId, string profileName)
     {
         lock (_gate)
         {
-            if (!_rooms.TryGetValue(roomId, out var room)) return null;
+            if (!_rooms.TryGetValue(roomId, out var room))
+                return null;
             var membershipId = Guid.NewGuid().ToString("N");
             room.Participants[membershipId] = profileName;
             room.EmptySince = null;
@@ -70,11 +76,14 @@ public sealed class InMemorySharedPlaybackCoordinator : ISharedPlaybackCoordinat
 
     private SharedRoomSnapshot? Apply(string roomId, string membershipId, string profileName, SharedPlaybackCommand command)
     {
-        if (!double.IsFinite(command.PositionSeconds) || command.PositionSeconds < 0 || !double.IsFinite(command.PlaybackRate) || command.PlaybackRate is < .25 or > 4) return null;
+        if (!double.IsFinite(command.PositionSeconds) || command.PositionSeconds < 0 || !double.IsFinite(command.PlaybackRate) || command.PlaybackRate is < .25 or > 4)
+            return null;
         lock (_gate)
         {
-            if (!_rooms.TryGetValue(roomId, out var room) || !room.Participants.ContainsKey(membershipId)) return null;
-            room.IsPaused = command.IsPaused;
+            if (!_rooms.TryGetValue(roomId, out var room) || !room.Participants.ContainsKey(membershipId))
+                return null;
+            room.ResumeAfterBuffering = !command.IsPaused;
+            room.IsPaused = command.IsPaused || room.BufferingParticipants.Count > 0;
             room.AnchorPosition = command.PositionSeconds;
             room.AnchorTime = _timeProvider.GetUtcNow();
             room.Rate = command.PlaybackRate;
@@ -84,12 +93,54 @@ public sealed class InMemorySharedPlaybackCoordinator : ISharedPlaybackCoordinat
         }
     }
 
+    private SharedRoomSnapshot? SetBuffering(string roomId, string membershipId, string profileName, bool isBuffering, double positionSeconds)
+    {
+        if (!double.IsFinite(positionSeconds) || positionSeconds < 0)
+            return null;
+        lock (_gate)
+        {
+            if (!_rooms.TryGetValue(roomId, out var room) || !room.Participants.ContainsKey(membershipId))
+                return null;
+            if (isBuffering)
+            {
+                if (room.BufferingParticipants.Add(membershipId))
+                {
+                    if (room.BufferingParticipants.Count == 1)
+                        room.ResumeAfterBuffering = !room.IsPaused;
+                    room.IsPaused = true;
+                    room.AnchorPosition = positionSeconds;
+                    room.AnchorTime = _timeProvider.GetUtcNow();
+                    room.LastController = profileName;
+                    room.Revision++;
+                }
+            }
+            else if (room.BufferingParticipants.Remove(membershipId))
+            {
+                if (room.BufferingParticipants.Count == 0 && room.ResumeAfterBuffering)
+                {
+                    room.IsPaused = false;
+                    room.AnchorTime = _timeProvider.GetUtcNow();
+                }
+                room.LastController = profileName;
+                room.Revision++;
+            }
+            return Snapshot(room);
+        }
+    }
+
     private SharedRoomSnapshot? Leave(string roomId, string membershipId)
     {
         lock (_gate)
         {
-            if (!_rooms.TryGetValue(roomId, out var room) || !room.Participants.Remove(membershipId)) return null;
-            if (room.Participants.Count == 0) room.EmptySince = _timeProvider.GetUtcNow();
+            if (!_rooms.TryGetValue(roomId, out var room) || !room.Participants.Remove(membershipId))
+                return null;
+            if (room.BufferingParticipants.Remove(membershipId) && room.BufferingParticipants.Count == 0 && room.ResumeAfterBuffering)
+            {
+                room.IsPaused = false;
+                room.AnchorTime = _timeProvider.GetUtcNow();
+            }
+            if (room.Participants.Count == 0)
+                room.EmptySince = _timeProvider.GetUtcNow();
             return Snapshot(room);
         }
     }
@@ -112,12 +163,26 @@ public sealed class InMemorySharedPlaybackCoordinator : ISharedPlaybackCoordinat
         public Guid MediaFileId { get; } = mediaFileId;
         public string MovieTitle { get; } = movieTitle;
         public Dictionary<string, string> Participants { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> BufferingParticipants { get; } = new(StringComparer.Ordinal);
         public bool IsPaused { get; set; } = true;
-        public double AnchorPosition { get; set; }
+        public double AnchorPosition
+        {
+            get; set;
+        }
         public DateTimeOffset AnchorTime { get; set; } = now;
         public double Rate { get; set; } = 1;
-        public long Revision { get; set; }
-        public string? LastController { get; set; }
+        public long Revision
+        {
+            get; set;
+        }
+        public string? LastController
+        {
+            get; set;
+        }
+        public bool ResumeAfterBuffering
+        {
+            get; set;
+        }
         public DateTimeOffset? EmptySince { get; set; } = now;
     }
 
@@ -134,8 +199,12 @@ public sealed class InMemorySharedPlaybackCoordinator : ISharedPlaybackCoordinat
             _membershipId = membershipId;
             _profileName = profileName;
         }
-        public string RoomId { get; }
+        public string RoomId
+        {
+            get;
+        }
         public SharedRoomSnapshot? Apply(SharedPlaybackCommand command) => Volatile.Read(ref _left) == 0 ? _owner.Apply(RoomId, _membershipId, _profileName, command) : null;
+        public SharedRoomSnapshot? SetBuffering(bool isBuffering, double positionSeconds) => Volatile.Read(ref _left) == 0 ? _owner.SetBuffering(RoomId, _membershipId, _profileName, isBuffering, positionSeconds) : null;
         public SharedRoomSnapshot? Leave() => Interlocked.Exchange(ref _left, 1) == 0 ? _owner.Leave(RoomId, _membershipId) : null;
         public void Dispose() => Leave();
     }

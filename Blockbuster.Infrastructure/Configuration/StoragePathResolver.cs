@@ -4,14 +4,38 @@ namespace Blockbuster.Infrastructure.Configuration;
 
 public interface IStoragePathResolver
 {
-    string DataRoot { get; }
-    string DatabasePath { get; }
-    string ArtworkPath { get; }
-    string CachePath { get; }
-    string GeneratedPath { get; }
-    string LogsPath { get; }
-    string BackupsPath { get; }
-    string DataProtectionKeysPath { get; }
+    string DataRoot
+    {
+        get;
+    }
+    string DatabasePath
+    {
+        get;
+    }
+    string ArtworkPath
+    {
+        get;
+    }
+    string CachePath
+    {
+        get;
+    }
+    string GeneratedPath
+    {
+        get;
+    }
+    string LogsPath
+    {
+        get;
+    }
+    string BackupsPath
+    {
+        get;
+    }
+    string DataProtectionKeysPath
+    {
+        get;
+    }
 }
 
 public sealed class StoragePathResolver(IOptions<StorageOptions> options) : IStoragePathResolver

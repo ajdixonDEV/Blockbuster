@@ -1,18 +1,14 @@
 <div class="player-shell @(Shared ? "shared-player" : "")" id="@PlayerId">
-    <video src="@Source" preload="metadata" aria-label="@AccessibleTitle"></video>
-    @if (Shared)
-    {
-        <button class="join-room-overlay" data-action="join">Join room and synchronize</button>
-    }
+    <video src="@Source" preload="metadata" tabindex="-1" aria-label="@AccessibleTitle" draggable="false"></video>
     <div class="player-status" aria-live="polite"></div>
     <div class="player-controls">
-        <button data-action="play" aria-label="Play" aria-pressed="false">▶</button>
+        <button data-action="play" aria-label="Play" aria-pressed="false" draggable="false">▶</button>
         <span data-current aria-label="Current time">0:00</span>
-        <input data-seek type="range" min="0" max="0" value="0" step="0.1" aria-label="Seek" />
+        <input data-seek type="range" min="0" max="0" value="0" step="0.1" aria-label="Seek" draggable="false" />
         <span data-duration aria-label="Duration">0:00</span>
-        <button data-action="mute" aria-label="Mute" aria-pressed="false">🔊</button>
-        <input data-volume type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume" />
-        <button data-action="fullscreen" aria-label="Enter fullscreen" aria-pressed="false">⛶</button>
+        <button data-action="mute" aria-label="Mute" aria-pressed="false" draggable="false">🔊</button>
+        <input data-volume type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume" draggable="false" />
+        <button data-action="fullscreen" aria-label="Enter fullscreen" aria-pressed="false" draggable="false">⛶</button>
     </div>
 </div>
 

@@ -25,7 +25,11 @@ public interface ISharedPlaybackCoordinator
 /// <summary>Connection-scoped authority to participate in one shared room.</summary>
 public interface ISharedRoomSession : IDisposable
 {
-    string RoomId { get; }
+    string RoomId
+    {
+        get;
+    }
     SharedRoomSnapshot? Apply(SharedPlaybackCommand command);
+    SharedRoomSnapshot? SetBuffering(bool isBuffering, double positionSeconds);
     SharedRoomSnapshot? Leave();
 }

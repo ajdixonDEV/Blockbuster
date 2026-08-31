@@ -14,13 +14,15 @@ public sealed class TmdbMovieMetadataProvider(HttpClient httpClient, IOptions<Tm
 
     public async Task<IReadOnlyList<MovieMetadataCandidate>> SearchAsync(string title, int year, CancellationToken cancellationToken = default)
     {
-        if (!IsConfigured) return [];
+        if (!IsConfigured)
+            return [];
         using var request = CreateRequest($"search/movie?query={Uri.EscapeDataString(title)}&year={year.ToString(CultureInfo.InvariantCulture)}&language={Uri.EscapeDataString(_options.Locale)}&include_adult=false");
         using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-        if (!document.RootElement.TryGetProperty("results", out var results)) return [];
+        if (!document.RootElement.TryGetProperty("results", out var results))
+            return [];
         return results.EnumerateArray().Select(result => new MovieMetadataCandidate(
             result.GetProperty("id").GetInt32(),
             GetString(result, "title") ?? string.Empty,
@@ -32,10 +34,12 @@ public sealed class TmdbMovieMetadataProvider(HttpClient httpClient, IOptions<Tm
 
     public async Task<MovieMetadata?> GetAsync(int tmdbId, CancellationToken cancellationToken = default)
     {
-        if (!IsConfigured) return null;
+        if (!IsConfigured)
+            return null;
         using var request = CreateRequest($"movie/{tmdbId.ToString(CultureInfo.InvariantCulture)}?language={Uri.EscapeDataString(_options.Locale)}");
         using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return null;
         response.EnsureSuccessStatusCode();
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);

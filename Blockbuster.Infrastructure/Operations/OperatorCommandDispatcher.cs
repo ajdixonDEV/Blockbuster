@@ -25,9 +25,12 @@ public sealed class ConsoleSecretPinReader : ISecretPinReader
         while (true)
         {
             var key = Console.ReadKey(intercept: true);
-            if (key.Key == ConsoleKey.Enter && digits.Count == 4) break;
-            if (key.Key == ConsoleKey.Backspace && digits.Count > 0) digits.RemoveAt(digits.Count - 1);
-            else if (char.IsAsciiDigit(key.KeyChar) && digits.Count < 4) digits.Add(key.KeyChar);
+            if (key.Key == ConsoleKey.Enter && digits.Count == 4)
+                break;
+            if (key.Key == ConsoleKey.Backspace && digits.Count > 0)
+                digits.RemoveAt(digits.Count - 1);
+            else if (char.IsAsciiDigit(key.KeyChar) && digits.Count < 4)
+                digits.Add(key.KeyChar);
         }
         Console.WriteLine();
         return new string([.. digits]);
@@ -84,7 +87,8 @@ public sealed class OperatorCommandDispatcher(
 
     private static string? ParseOutputPath(IReadOnlyList<string> arguments)
     {
-        if (arguments.Count == 1) return null;
+        if (arguments.Count == 1)
+            return null;
         if (arguments.Count == 3 && string.Equals(arguments[1], "--output", StringComparison.OrdinalIgnoreCase))
             return arguments[2];
         throw new ArgumentException("Usage: Blockbuster operator backup [--output <absolute-path>]");

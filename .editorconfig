@@ -1,0 +1,24 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,razor}]
+indent_style = space
+indent_size = 4
+
+[*.{js,json,css,md,sql,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.cs]
+csharp_new_line_before_open_brace = all
+csharp_preserve_single_line_statements = false
+csharp_preserve_single_line_blocks = false
+dotnet_diagnostic.IDE0055.severity = error

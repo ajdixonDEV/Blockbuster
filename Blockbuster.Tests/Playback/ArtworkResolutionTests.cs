@@ -70,7 +70,11 @@ public sealed class ArtworkResolutionTests
         await using var connection = await services.GetRequiredService<IDbConnectionFactory>().OpenConnectionAsync(cancellationToken);
         await connection.ExecuteAsync(new CommandDefinition(
             "INSERT INTO movies(id,provider_title,local_poster_path,created_at,updated_at) VALUES(@Id,'Artwork Test',@Poster,'now','now')",
-            new { Id = id.ToString("N"), Poster = posterPath }, cancellationToken: cancellationToken));
+            new
+            {
+                Id = id.ToString("N"),
+                Poster = posterPath
+            }, cancellationToken: cancellationToken));
         return id;
     }
 }

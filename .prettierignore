@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+.git/
+.playwright-data/
+artifacts/
+node_modules/
+playwright-report/
+test-results/
+Blockbuster/wwwroot/lib/
+package-lock.json
+PLAN.md
+tests/fixtures/

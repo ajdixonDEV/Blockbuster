@@ -16,7 +16,7 @@
             <BbCardContent>
                 <h3>No profiles yet</h3>
                 <p>An administrator needs to create the first viewing profile.</p>
-                <BbButton Href="admin/login">Administrator sign in</BbButton>
+                <BbButton Href="admin/login" draggable="false">Administrator sign in</BbButton>
             </BbCardContent>
         </BbCard>
     }
@@ -26,16 +26,17 @@
             @foreach (var profile in profiles)
             {
                 <form method="post" action="/auth/profile/select" class="profile-tile">
-                    <input type="hidden" name="profileId" value="@profile.Id" />
+                    <AntiforgeryToken />
+                    <input type="hidden" name="profileId" value="@profile.Id" draggable="false" />
                     <BbAvatar Size="AvatarSize.Large">
                         <BbAvatarFallback>@Initials(profile.Name)</BbAvatarFallback>
                     </BbAvatar>
                     <strong>@profile.Name</strong>
                     @if (profile.HasPin)
                     {
-                        <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" placeholder="4-digit PIN" required aria-label="PIN for @profile.Name" />
+                        <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" placeholder="4-digit PIN" required aria-label="PIN for @profile.Name" draggable="false" />
                     }
-                    <button type="submit">Watch as @profile.Name</button>
+                    <button type="submit" draggable="false">Watch as @profile.Name</button>
                 </form>
             }
         </div>

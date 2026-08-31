@@ -5,38 +5,56 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
 @inject Microsoft.Extensions.Options.IOptions<Blockbuster.Infrastructure.Configuration.PlaybackOptions> Playback
+
 <PageTitle>@(movie?.Title ?? "Player") · Blockbuster</PageTitle>
 @if (movie is not null && version is not null)
 {
     <section class="player-page">
-        <a href="/movies/@MovieId" class="back-link">← @movie.Title</a>
+        <a href="/movies/@MovieId" class="back-link" draggable="false">
+            ← @movie.Title
+        </a>
         <h1 id="main-heading" tabindex="-1">@movie.Title</h1>
-        <PlaybackSurface PlayerId="movie-player" Source="@($"/media/{version.MediaFileId}")" AccessibleTitle="@movie.Title" />
-        <p class="player-help">Space: play/pause · ←/→: seek 10 seconds · M: mute · F: fullscreen</p>
+        <PlaybackSurface
+            PlayerId="movie-player"
+            Source="@($"/media/{version.MediaFileId}")"
+            AccessibleTitle="@movie.Title" />
+        <p class="player-help">
+            Space: play/pause · ←/→: seek 10 seconds · M: mute · F: fullscreen
+        </p>
     </section>
 }
 else
 {
-    <section class="catalog-empty"><h1 id="main-heading" tabindex="-1">Player unavailable</h1>
+    <section class="catalog-empty">
+        <h1 id="main-heading" tabindex="-1">Player unavailable</h1>
         <p>This version is unavailable.</p>
     </section>
 }
+
 @code {
-    [Parameter] public Guid MovieId { get; set; }
-    [SupplyParameterFromQuery(Name = "file")] public Guid MediaFileId { get; set; }
+    [Parameter]
+    public Guid MovieId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "file")]
+    public Guid MediaFileId { get; set; }
+
     private MovieDetails? movie;
     private MovieVersion? version;
     private IJSObjectReference? module;
+
     protected override async Task OnParametersSetAsync()
     {
         var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         if (Guid.TryParse(
-            auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
-            out var id))
+                auth.User.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+                out var profileId))
         {
-            movie = await MovieLibrary.GetAsync(MovieId, id);
+            movie = await MovieLibrary.GetAsync(MovieId, profileId);
             version = movie?.Versions.FirstOrDefault(item =>
-                item.MediaFileId == MediaFileId && item.IsAvailable && item.IsBrowserCompatible);
+                item.MediaFileId == MediaFileId
+                && item.IsAvailable
+                && item.IsBrowserCompatible);
         }
     }
 
@@ -47,14 +65,22 @@ else
             return;
         }
 
-        module = await JS.InvokeAsync<IJSObjectReference>("import", "/js/moviePlayer.js");
+        module = await JS.InvokeAsync<IJSObjectReference>(
+            "import",
+            "/js/moviePlayer.js");
         await module.InvokeVoidAsync(
             "initialize",
             "movie-player",
             MovieId,
             movie.Progress?.TotalSeconds ?? 0,
             movie.ProgressRevision,
-            new { progressIntervalMs = (int)Playback.Value.ProgressInterval.TotalMilliseconds, resumeThresholdSeconds = Playback.Value.ResumeThreshold.TotalSeconds });
+            new
+            {
+                progressIntervalMs =
+                    (int)Playback.Value.ProgressInterval.TotalMilliseconds,
+                resumeThresholdSeconds =
+                    Playback.Value.ResumeThreshold.TotalSeconds
+            });
     }
 
     public async ValueTask DisposeAsync()

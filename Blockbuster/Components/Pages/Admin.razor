@@ -19,7 +19,8 @@
             <p>Profile and health management.</p>
         </div>
         <form method="post" action="/auth/admin/logout">
-            <button type="submit">Sign out</button>
+            <AntiforgeryToken />
+            <button type="submit" draggable="false">Sign out</button>
         </form>
     </div>
     @if (!string.IsNullOrWhiteSpace(Error))
@@ -31,25 +32,28 @@
         <section class="admin-panel">
             <h2>Profiles</h2>
             <form method="post" action="/admin/profiles/create" class="compact-form">
-                <label>Profile name <input name="name" maxlength="40" required /></label>
-                <label>Optional 4-digit PIN <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" /></label>
-                <button type="submit">Create profile</button>
+                <AntiforgeryToken />
+                <label>Profile name <input name="name" maxlength="40" required draggable="false" /></label>
+                <label>Optional 4-digit PIN <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" draggable="false" /></label>
+                <button type="submit" draggable="false">Create profile</button>
             </form>
             @foreach (var profile in profiles)
             {
                 <div class="profile-admin-row">
                     <form method="post" action="/admin/profiles/update" class="compact-form">
-                        <input type="hidden" name="id" value="@profile.Id" />
-                        <input name="name" maxlength="40" value="@profile.Name" required aria-label="Profile name" />
-                        <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" placeholder="Replace PIN" aria-label="Replacement PIN" />
+                        <AntiforgeryToken />
+                        <input type="hidden" name="id" value="@profile.Id" draggable="false" />
+                        <input name="name" maxlength="40" value="@profile.Name" required aria-label="Profile name" draggable="false" />
+                        <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" placeholder="Replace PIN" aria-label="Replacement PIN" draggable="false" />
                         <label>
-                            <input type="checkbox" name="clearPin" /> Clear PIN
+                            <input type="checkbox" name="clearPin" draggable="false" /> Clear PIN
                         </label>
-                        <button type="submit">Save</button>
+                        <button type="submit" draggable="false">Save</button>
                     </form>
                     <form method="post" action="/admin/profiles/delete">
-                        <input type="hidden" name="id" value="@profile.Id" />
-                        <button class="danger" type="submit" onclick="return confirm('Delete this profile? This cannot be undone.');">Delete</button>
+                        <AntiforgeryToken />
+                        <input type="hidden" name="id" value="@profile.Id" draggable="false" />
+                        <button class="danger" type="submit" onclick="return confirm('Delete this profile? This cannot be undone.');" draggable="false">Delete</button>
                     </form>
                 </div>
             }
@@ -68,7 +72,8 @@
             <div class="panel-heading">
                 <h2>Movie scanning</h2>
                 <form method="post" action="/admin/scans/request">
-                    <button type="submit" disabled="@LibraryScanner.Status.IsRunning">@(LibraryScanner.Status.IsRunning ? "Scanning…" : "Scan now")</button>
+                    <AntiforgeryToken />
+                    <button type="submit" disabled="@LibraryScanner.Status.IsRunning" draggable="false">@(LibraryScanner.Status.IsRunning ? "Scanning…" : "Scan now")</button>
                 </form>
             </div>
             @if (scanRuns.Count == 0)
@@ -112,23 +117,26 @@
                             @foreach (var candidate in match.Candidates.Take(5))
                             {
                                 <form method="post" action="/admin/matches/accept">
-                                    <input type="hidden" name="mediaFileId" value="@match.MediaFileId" />
-                                    <input type="hidden" name="tmdbId" value="@candidate.TmdbId" />
-                                    <button type="submit">Use @candidate.Title @(candidate.Year is null ? "" : $"({candidate.Year})")</button>
+                                    <AntiforgeryToken />
+                                    <input type="hidden" name="mediaFileId" value="@match.MediaFileId" draggable="false" />
+                                    <input type="hidden" name="tmdbId" value="@candidate.TmdbId" draggable="false" />
+                                    <button type="submit" draggable="false">Use @candidate.Title @(candidate.Year is null ? "" : $"({candidate.Year})")</button>
                                 </form>
                             }
                         </div>
                     }
                     <form method="post" action="/admin/matches/accept" class="compact-form">
-                        <input type="hidden" name="mediaFileId" value="@match.MediaFileId" />
-                        <input type="number" min="1" name="tmdbId" placeholder="TMDB ID" required aria-label="TMDB movie ID" />
-                        <button type="submit">Match by ID</button>
+                        <AntiforgeryToken />
+                        <input type="hidden" name="mediaFileId" value="@match.MediaFileId" draggable="false" />
+                        <input type="number" min="1" name="tmdbId" placeholder="TMDB ID" required aria-label="TMDB movie ID" draggable="false" />
+                        <button type="submit" draggable="false">Match by ID</button>
                     </form>
                     <form method="post" action="/admin/matches/local" class="compact-form">
-                        <input type="hidden" name="mediaFileId" value="@match.MediaFileId" />
-                        <input name="title" maxlength="200" value="@match.ParsedTitle" required aria-label="Local movie title" />
-                        <input type="number" min="1800" max="2200" name="year" value="@match.ParsedYear" placeholder="Year" aria-label="Local movie year" />
-                        <button type="submit">Use local metadata</button>
+                        <AntiforgeryToken />
+                        <input type="hidden" name="mediaFileId" value="@match.MediaFileId" draggable="false" />
+                        <input name="title" maxlength="200" value="@match.ParsedTitle" required aria-label="Local movie title" draggable="false" />
+                        <input type="number" min="1800" max="2200" name="year" value="@match.ParsedYear" placeholder="Year" aria-label="Local movie year" draggable="false" />
+                        <button type="submit" draggable="false">Use local metadata</button>
                     </form>
                 </article>
             }

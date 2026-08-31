@@ -1,0 +1,231 @@
+@page "/movies"
+@attribute [Authorize]
+@implements IDisposable
+@inject NavigationManager Navigation
+@inject IMovieLibrary MovieLibrary
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Movies · Blockbuster</PageTitle>
+<section class="catalog-page">
+    <div class="catalog-heading">
+        <div>
+            <BbBadge Variant="BadgeVariant.Outline">Our collection</BbBadge>
+            <h1>Movies</h1>
+            <p>Every piece of media we own, all in one place.</p>
+        </div>
+        <BbBadge Variant="BadgeVariant.Secondary">
+            @(catalog?.Total ?? 0) titles
+        </BbBadge>
+    </div>
+    @if (loading)
+    {
+        <p class="access-note" role="status">Loading catalog…</p>
+    }
+    else
+    {
+        <form method="get" action="/movies" class="catalog-toolbar">
+            <div class="search-control">
+                <LucideIcon Name="search" Size="17" />
+                <input
+                    name="q"
+                    value="@Search"
+                    placeholder="Search movies"
+                    aria-label="Search movies"
+                    draggable="false" />
+            </div>
+            <select name="genre" aria-label="Genre" draggable="false">
+                <option value="">All genres</option>
+                @foreach (var genre in catalog?.Genres ?? [])
+                {
+                    <option value="@genre" selected="@(genre == Genre)">@genre</option>
+                }
+            </select>
+            <select name="year" aria-label="Year" draggable="false">
+                <option value="">Any year</option>
+                @foreach (var year in catalog?.Years ?? [])
+                {
+                    <option value="@year" selected="@(year == Year)">@year</option>
+                }
+            </select>
+            <select name="sort" aria-label="Sort" draggable="false">
+                <option value="title" selected="@(Sort == "title")">Title A–Z</option>
+                <option value="year" selected="@(Sort == "year")">Newest year</option>
+                <option value="added" selected="@(Sort == "added")">Recently added</option>
+            </select>
+            <button type="submit" draggable="false">Apply</button>
+        </form>
+    }
+
+    @if (catalog is { Total: 0 })
+    {
+        <BbCard Class="catalog-empty">
+            <BbCardContent>
+                <div class="empty-icon">
+                    <LucideIcon Name="film" Size="34" />
+                </div>
+                <BbCardTitle>No movies match</BbCardTitle>
+                <BbCardDescription>
+                    Try another filter, or ask an administrator to scan a movie library.
+                </BbCardDescription>
+            </BbCardContent>
+        </BbCard>
+    }
+    else if (catalog is not null)
+    {
+        <div class="movie-grid">
+            @foreach (var movie in catalog.Items)
+            {
+                <a class="movie-card" href="/movies/@movie.Id" draggable="false">
+                    <div class="poster">
+                        @if (movie.PosterUrl is not null)
+                        {
+                            <img
+                                src="@movie.PosterUrl"
+                                alt="Poster for @movie.Title"
+                                loading="lazy"
+                                draggable="false" />
+                        }
+                        else
+                        {
+                            <LucideIcon Name="film" Size="42" />
+                        }
+                        @if (movie.Progress is { TotalSeconds: >= 30 }
+                            && movie.Duration is { TotalSeconds: > 0 })
+                        {
+                            <span
+                                class="poster-progress"
+                                style="width:@ProgressPercent(movie)%">
+                            </span>
+                        }
+                    </div>
+                    <strong>@movie.Title</strong>
+                    <span>
+                        @(movie.Year?.ToString() ?? "Year unknown") ·
+                        @movie.AvailableVersions version@(movie.AvailableVersions == 1 ? "" : "s")
+                    </span>
+                </a>
+            }
+        </div>
+
+        @if (catalog.Total > catalog.PageSize)
+        {
+            <nav class="pager" aria-label="Movie pages">
+                @if (catalog.Page > 1)
+                {
+                    <a href="@PageUrl(catalog.Page - 1)" draggable="false">← Previous</a>
+                }
+                <span>Page @catalog.Page of @TotalPages</span>
+                @if (catalog.Page < TotalPages)
+                {
+                    <a href="@PageUrl(catalog.Page + 1)" draggable="false">Next →</a>
+                }
+            </nav>
+        }
+    }
+</section>
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? Search { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? Genre { get; set; }
+
+    [SupplyParameterFromQuery]
+    public int? Year { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string Sort { get; set; } = "title";
+
+    [SupplyParameterFromQuery]
+    public int Page { get; set; } = 1;
+
+    private MovieCatalogPage? catalog;
+    private CancellationTokenSource? loadCancellation;
+    private bool loading;
+
+    private int TotalPages => catalog is null
+        ? 1
+        : (int)Math.Ceiling(catalog.Total / (double)catalog.PageSize);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        loadCancellation?.Cancel();
+        loadCancellation?.Dispose();
+        loadCancellation = new CancellationTokenSource();
+        await LoadAsync(loadCancellation.Token);
+    }
+
+    private async Task LoadAsync(CancellationToken cancellationToken)
+    {
+        loading = true;
+        catalog = null;
+
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (!Guid.TryParse(
+                auth.User.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+                out var profileId))
+        {
+            loading = false;
+            return;
+        }
+
+        var sort = Sort switch
+        {
+            "year" => MovieSort.YearDescending,
+            "added" => MovieSort.RecentlyAdded,
+            _ => MovieSort.Title
+        };
+
+        try
+        {
+            var browse = await MovieLibrary.BrowseAsync(
+                profileId,
+                new MovieCatalogQuery(Search, Genre, Year, sort, Page),
+                cancellationToken);
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                catalog = browse;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                loading = false;
+            }
+        }
+    }
+
+    private string PageUrl(int page)
+    {
+        return Navigation.GetUriWithQueryParameters(
+            "/movies",
+            new Dictionary<string, object?>
+            {
+                { "q", Search },
+                { "genre", Genre },
+                { "year", Year },
+                { "sort", Sort },
+                { "page", page }
+            });
+    }
+
+    private static double ProgressPercent(MovieCatalogItem movie) =>
+        Math.Clamp(
+            movie.Progress!.Value.TotalSeconds
+                / movie.Duration!.Value.TotalSeconds
+                * 100,
+            0,
+            100);
+
+    public void Dispose()
+    {
+        loadCancellation?.Cancel();
+        loadCancellation?.Dispose();
+    }
+}

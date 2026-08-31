@@ -5,13 +5,34 @@ public sealed class StorageOptions
     public const string SectionName = "Storage";
 
     public string DataRoot { get; set; } = string.Empty;
-    public string? DatabasePath { get; set; }
-    public string? ArtworkPath { get; set; }
-    public string? CachePath { get; set; }
-    public string? GeneratedPath { get; set; }
-    public string? LogsPath { get; set; }
-    public string? BackupsPath { get; set; }
-    public string? DataProtectionKeysPath { get; set; }
+    public string? DatabasePath
+    {
+        get; set;
+    }
+    public string? ArtworkPath
+    {
+        get; set;
+    }
+    public string? CachePath
+    {
+        get; set;
+    }
+    public string? GeneratedPath
+    {
+        get; set;
+    }
+    public string? LogsPath
+    {
+        get; set;
+    }
+    public string? BackupsPath
+    {
+        get; set;
+    }
+    public string? DataProtectionKeysPath
+    {
+        get; set;
+    }
 }
 
 public sealed class LibrariesOptions
@@ -52,9 +73,10 @@ public sealed class TmdbOptions
     public string Locale { get; set; } = "en-US";
     public string PosterSize { get; set; } = "w500";
     public string BackdropSize { get; set; } = "w1280";
-    public bool RequireMatchingYear { get; set; } = true;
-    public bool RequireUniqueMatch { get; set; } = true;
-    public string? Token { get; set; }
+    public string? Token
+    {
+        get; set;
+    }
 }
 
 public sealed class PlaybackOptions
@@ -63,7 +85,6 @@ public sealed class PlaybackOptions
 
     public TimeSpan ProgressInterval { get; set; } = TimeSpan.FromSeconds(10);
     public TimeSpan ResumeThreshold { get; set; } = TimeSpan.FromSeconds(30);
-    public bool PreferBrowserCompatibleVersions { get; set; } = true;
 }
 
 public sealed class HistoryOptions
@@ -88,14 +109,20 @@ public sealed class AuthenticationOptions
     public const string SectionName = "Authentication";
 
     public TimeSpan AdminCookieLifetime { get; set; } = TimeSpan.FromHours(8);
-    public string? BootstrapPin { get; set; }
+    public string? BootstrapPin
+    {
+        get; set;
+    }
 }
 
 public sealed class ReverseProxyOptions
 {
     public const string SectionName = "ReverseProxy";
 
-    public bool Enabled { get; set; }
+    public bool Enabled
+    {
+        get; set;
+    }
     public int ForwardLimit { get; set; } = 1;
     public List<string> KnownProxies { get; set; } = [];
 }

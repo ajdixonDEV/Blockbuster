@@ -15,13 +15,20 @@ else
     <section class="movie-detail">
         @if (movie.BackdropUrl is not null)
         {
-            <img class="detail-backdrop" src="@movie.BackdropUrl" alt="" />
+            <img
+                class="detail-backdrop"
+                src="@movie.BackdropUrl"
+                alt=""
+                draggable="false" />
         }
         <div class="detail-content">
             <div class="detail-poster">
                 @if (movie.PosterUrl is not null)
                 {
-                    <img src="@movie.PosterUrl" alt="Poster for @movie.Title" />
+                    <img
+                        src="@movie.PosterUrl"
+                        alt="Poster for @movie.Title"
+                        draggable="false" />
                 }
                 else
                 {
@@ -29,49 +36,97 @@ else
                 }
             </div>
             <div>
-                <a href="/movies" class="back-link">← Back to movies</a>
+                <a href="/movies" class="back-link" draggable="false">
+                    ← Back to movies
+                </a>
                 <h1>@movie.Title</h1>
                 <p class="movie-meta">
-                    @(movie.Year?.ToString() ?? "Year unknown") @if(movie.Genres.Count>0){
-                    <text> · @string.Join(" · ", movie.Genres)</text>
-                }
-            </p>
-            <p class="overview">@(movie.Overview ?? "No overview is available.")</p>
-            <h2>Available versions</h2>
-            <div class="version-list">
-                @foreach (var version in movie.Versions)
-                {
-                    <article class="version-card">
-                        <div>
-                            <strong>@version.Label</strong>
-                            <small>@version.VideoCodec / @version.AudioCodec · @FormatSize(version.Length)</small>
-                            <p class="@(version.IsBrowserCompatible ? "compatible" : "incompatible")">@version.CompatibilityExplanation</p>
-                        </div>@if(version.IsAvailable&&version.IsBrowserCompatible){
-                        <div class="version-actions"><a class="play-link" href="/movies/@MovieId/play?file=@version.MediaFileId">@(movie.Progress is { TotalSeconds: >= 30 } ? "Resume" : "Play")</a>
-                        <form method="post" action="/shared/new" class="shared-create-form"><input type="hidden" name="movie" value="@MovieId" /><input type="hidden" name="file" value="@version.MediaFileId" /><button class="shared-link" type="submit">Watch together</button></form></div>
-                    }else
+                    @(movie.Year?.ToString() ?? "Year unknown")
+                    @if (movie.Genres.Count > 0)
                     {
-                        <button disabled>Unavailable</button>
+                        <text> · @string.Join(" · ", movie.Genres)</text>
                     }
-                </article>
-            }
+                </p>
+                <p class="overview">
+                    @(movie.Overview ?? "No overview is available.")
+                </p>
+                <h2>Available versions</h2>
+                <div class="version-list">
+                    @foreach (var version in movie.Versions)
+                    {
+                        <article class="version-card">
+                            <div>
+                                <strong>@version.Quality</strong>
+                                <small>@version.FileName</small>
+                                @if (!version.IsBrowserCompatible)
+                                {
+                                    <p class="incompatible">
+                                        @version.CompatibilityExplanation
+                                    </p>
+                                }
+                            </div>
+                            @if (version.IsAvailable && version.IsBrowserCompatible)
+                            {
+                                <div class="version-actions">
+                                    <a
+                                        class="play-link"
+                                        href="/movies/@MovieId/play?file=@version.MediaFileId"
+                                        draggable="false">
+                                        @(movie.Progress is { TotalSeconds: >= 30 }
+                                            ? "Resume"
+                                            : "Play")
+                                    </a>
+                                    <form
+                                        method="post"
+                                        action="/shared/new"
+                                        class="shared-create-form">
+                                        <AntiforgeryToken />
+                                        <input
+                                            type="hidden"
+                                            name="movie"
+                                            value="@MovieId"
+                                            draggable="false" />
+                                        <input
+                                            type="hidden"
+                                            name="file"
+                                            value="@version.MediaFileId"
+                                            draggable="false" />
+                                        <button
+                                            class="shared-link"
+                                            type="submit"
+                                            draggable="false">
+                                            Start a watch party
+                                        </button>
+                                    </form>
+                                </div>
+                            }
+                            else
+                            {
+                                <button disabled draggable="false">Unavailable</button>
+                            }
+                        </article>
+                    }
+                </div>
+            </div>
         </div>
-    </div>
-</div>
-</section>
+    </section>
 }
+
 @code {
-    [Parameter] public Guid MovieId { get; set; }
+    [Parameter]
+    public Guid MovieId { get; set; }
+
     private MovieDetails? movie;
+
     protected override async Task OnParametersSetAsync()
     {
         var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         if (Guid.TryParse(
-            auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
-            out var id))
+                auth.User.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+                out var profileId))
         {
-            movie = await MovieLibrary.GetAsync(MovieId, id);
+            movie = await MovieLibrary.GetAsync(MovieId, profileId);
         }
     }
-    private static string FormatSize(long x) => $"{x / 1024d / 1024d:F1} MB";
 }

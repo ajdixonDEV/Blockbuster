@@ -2,9 +2,13 @@
   "private": true,
   "devDependencies": {
     "@microsoft/signalr": "10.0.11",
-    "@playwright/test": "1.62.1"
+    "@playwright/test": "1.62.1",
+    "prettier": "3.6.2"
   },
   "scripts": {
-    "test:browser": "playwright test"
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check:readability": "node scripts/check-readability.js",
+    "test:browser": "node scripts/run-browser-tests.js"
   }
 }

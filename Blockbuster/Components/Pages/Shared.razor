@@ -6,25 +6,48 @@
 <PageTitle>Shared rooms · Blockbuster</PageTitle>
 <section class="catalog-page">
     <div class="catalog-heading">
-        <div><BbBadge Variant="BadgeVariant.Outline">Watch together</BbBadge><h1>Shared rooms</h1>
-            <p>Close synchronization for viewers on your trusted network.</p></div>
+        <div>
+            <BbBadge Variant="BadgeVariant.Outline">Watch together</BbBadge>
+            <h1>Shared rooms</h1>
+            <p>Close synchronization for viewers on your trusted network.</p>
+        </div>
         <BbBadge Variant="BadgeVariant.Secondary">@rooms.Count active</BbBadge>
     </div>
     @if (rooms.Count == 0)
     {
-        <BbCard Class="catalog-empty"><BbCardContent><div class="empty-icon"><LucideIcon Name="users" Size="34" /></div>
-            <BbCardTitle>No active rooms</BbCardTitle><BbCardDescription>Open a movie and choose “Watch together” to start one.</BbCardDescription>
-            <BbButton Href="movies" Variant="ButtonVariant.Link">Browse movies <LucideIcon Name="arrow-right" Size="16" /></BbButton>
-        </BbCardContent></BbCard>
+        <BbCard Class="catalog-empty">
+            <BbCardContent>
+                <div class="empty-icon">
+                    <LucideIcon Name="users" Size="34" />
+                </div>
+                <BbCardTitle>No active rooms</BbCardTitle>
+                <BbCardDescription>
+                    Open a movie and choose “Watch together” to start one.
+                </BbCardDescription>
+                <BbButton
+                    Href="movies"
+                    Variant="ButtonVariant.Link"
+                    draggable="false">
+                    Browse movies
+                    <LucideIcon Name="arrow-right" Size="16" />
+                </BbButton>
+            </BbCardContent>
+        </BbCard>
     }
     else
     {
         <div class="room-grid">
             @foreach (var room in rooms)
             {
-                <a class="room-card" href="/shared/@room.RoomId">
-                    <LucideIcon Name="users" Size="24" /><div><strong>@room.MovieTitle</strong>
-                    <span>@room.ParticipantCount viewer@(room.ParticipantCount == 1 ? "" : "s") · @(room.IsPaused ? "Paused" : "Playing") at @FormatPosition(room.Position)</span></div>
+                <a class="room-card" href="/shared/@room.RoomId" draggable="false">
+                    <LucideIcon Name="users" Size="24" />
+                    <div>
+                        <strong>@room.MovieTitle</strong>
+                        <span>
+                            @room.ParticipantCount viewer@(room.ParticipantCount == 1 ? "" : "s")
+                            · @(room.IsPaused ? "Paused" : "Playing") at @FormatPosition(room.Position)
+                        </span>
+                    </div>
                 </a>
             }
         </div>
@@ -35,6 +58,7 @@
     private IReadOnlyList<SharedRoomSummary> rooms = [];
     private PeriodicTimer? refreshTimer;
     private CancellationTokenSource? refreshCancellation;
+
     protected override void OnInitialized()
     {
         rooms = Rooms.ListRooms();
@@ -42,14 +66,30 @@
         refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
         _ = RefreshAsync(refreshCancellation.Token);
     }
+
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
-        try { while (await refreshTimer!.WaitForNextTickAsync(cancellationToken)) { rooms = Rooms.ListRooms(); await InvokeAsync(StateHasChanged); } }
-        catch (OperationCanceledException) { }
+        try
+        {
+            while (await refreshTimer!.WaitForNextTickAsync(cancellationToken))
+            {
+                rooms = Rooms.ListRooms();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
+
     public ValueTask DisposeAsync()
     {
-        refreshCancellation?.Cancel(); refreshCancellation?.Dispose(); refreshTimer?.Dispose(); return ValueTask.CompletedTask;
+        refreshCancellation?.Cancel();
+        refreshCancellation?.Dispose();
+        refreshTimer?.Dispose();
+        return ValueTask.CompletedTask;
     }
-    private static string FormatPosition(TimeSpan position) => position.ToString(@"h\:mm\:ss");
+
+    private static string FormatPosition(TimeSpan position) =>
+        position.ToString(@"h\:mm\:ss");
 }

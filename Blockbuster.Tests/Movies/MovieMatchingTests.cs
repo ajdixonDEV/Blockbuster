@@ -71,9 +71,18 @@ public sealed class MovieMatchingTests
 
     private sealed class RecordingHandler(string responseJson) : HttpMessageHandler
     {
-        public string? AuthorizationScheme { get; private set; }
-        public string? AuthorizationParameter { get; private set; }
-        public Uri? RequestUri { get; private set; }
+        public string? AuthorizationScheme
+        {
+            get; private set;
+        }
+        public string? AuthorizationParameter
+        {
+            get; private set;
+        }
+        public Uri? RequestUri
+        {
+            get; private set;
+        }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {

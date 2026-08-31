@@ -33,7 +33,10 @@ public sealed record LibraryScannerStatus(
 
 public interface ILibraryScanner
 {
-    LibraryScannerStatus Status { get; }
+    LibraryScannerStatus Status
+    {
+        get;
+    }
     Task<LibraryScanResult> ScanAsync(ScanReason reason, CancellationToken cancellationToken = default);
 }
 

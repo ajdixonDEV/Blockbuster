@@ -10,7 +10,8 @@ try
     builder.AddBlockbusterWeb();
 
     var app = builder.Build();
-    if (isOperatorCommand) return await app.RunBlockbusterOperatorAsync(args[1..]);
+    if (isOperatorCommand)
+        return await app.RunBlockbusterOperatorAsync(args[1..]);
 
     app.UseBlockbusterWeb();
     Log.Information("Starting Blockbuster in {Environment}", app.Environment.EnvironmentName);

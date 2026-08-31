@@ -10,16 +10,20 @@ public sealed class ArtworkCache(HttpClient httpClient, IStoragePathResolver pat
 
     public async Task<string?> CacheAsync(string kind, int tmdbId, string? providerPath, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(providerPath)) return null;
-        if (kind is not ("poster" or "backdrop")) throw new ArgumentException("Artwork kind must be poster or backdrop.", nameof(kind));
+        if (string.IsNullOrWhiteSpace(providerPath))
+            return null;
+        if (kind is not ("poster" or "backdrop"))
+            throw new ArgumentException("Artwork kind must be poster or backdrop.", nameof(kind));
         var size = kind == "poster" ? _options.PosterSize : _options.BackdropSize;
         var extension = Path.GetExtension(providerPath);
-        if (extension is not (".jpg" or ".jpeg" or ".png" or ".webp")) extension = ".jpg";
+        if (extension is not (".jpg" or ".jpeg" or ".png" or ".webp"))
+            extension = ".jpg";
         var directory = Path.Combine(paths.ArtworkPath, kind);
         Directory.CreateDirectory(directory);
         var relativePath = Path.Combine(kind, tmdbId.ToString(System.Globalization.CultureInfo.InvariantCulture) + extension.ToLowerInvariant());
         var destination = Path.Combine(paths.ArtworkPath, relativePath);
-        if (File.Exists(destination)) return relativePath;
+        if (File.Exists(destination))
+            return relativePath;
 
         var source = new Uri($"https://image.tmdb.org/t/p/{Uri.EscapeDataString(size)}/{providerPath.TrimStart('/')}");
         using var response = await httpClient.GetAsync(source, HttpCompletionOption.ResponseHeadersRead, cancellationToken);

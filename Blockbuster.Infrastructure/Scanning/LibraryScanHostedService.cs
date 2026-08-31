@@ -31,7 +31,10 @@ public sealed class LibraryScanHostedService(
 
     private async Task RunSafelyAsync(ScanReason reason, CancellationToken cancellationToken)
     {
-        try { await scanner.ScanAsync(reason, cancellationToken); }
+        try
+        {
+            await scanner.ScanAsync(reason, cancellationToken);
+        }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (Exception exception) { ScanFailed(logger, reason, exception); }
     }

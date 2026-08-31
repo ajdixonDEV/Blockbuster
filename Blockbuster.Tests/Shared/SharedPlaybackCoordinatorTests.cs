@@ -71,6 +71,29 @@ public sealed class SharedPlaybackCoordinatorTests
     }
 
     [Fact]
+    public void BufferingPausesTheRoomUntilEveryBufferingViewerIsReady()
+    {
+        using var coordinator = CreateCoordinator();
+        var room = coordinator.CreateRoom(Guid.NewGuid(), Guid.NewGuid(), "Movie");
+        using var alex = coordinator.JoinRoom(room.RoomId, "Alex")!;
+        using var sam = coordinator.JoinRoom(room.RoomId, "Sam")!;
+        alex.Apply(new(false, 30));
+
+        var waiting = sam.SetBuffering(true, 31);
+        Assert.NotNull(waiting);
+        Assert.True(waiting.IsPaused);
+        Assert.Equal(31, waiting.AnchorPositionSeconds);
+
+        alex.SetBuffering(true, 31);
+        var stillWaiting = sam.SetBuffering(false, 31);
+        Assert.True(stillWaiting!.IsPaused);
+
+        var resumed = alex.SetBuffering(false, 31);
+        Assert.False(resumed!.IsPaused);
+        Assert.Equal(31, resumed.AnchorPositionSeconds);
+    }
+
+    [Fact]
     public void EmptyRoomExpiresOnlyAfterConfiguredBoundary()
     {
         var clock = new FakeTimeProvider();
@@ -88,7 +111,8 @@ public sealed class SharedPlaybackCoordinatorTests
         var clock = new FakeTimeProvider();
         using var coordinator = CreateCoordinator(clock);
         var room = coordinator.CreateRoom(Guid.NewGuid(), Guid.NewGuid(), "Movie");
-        using (var first = coordinator.JoinRoom(room.RoomId, "Alex")!) first.Leave();
+        using (var first = coordinator.JoinRoom(room.RoomId, "Alex")!)
+            first.Leave();
         clock.Advance(TimeSpan.FromMinutes(4));
         using var second = coordinator.JoinRoom(room.RoomId, "Alex");
         clock.Advance(TimeSpan.FromMinutes(2));

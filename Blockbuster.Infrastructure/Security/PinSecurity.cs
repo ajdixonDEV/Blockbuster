@@ -22,9 +22,11 @@ public sealed class PinHasher : IPinHasher
 
     public bool Verify(string pin, string encodedHash)
     {
-        if (!IsValid(pin)) return false;
+        if (!IsValid(pin))
+            return false;
         var parts = encodedHash.Split('$');
-        if (parts.Length != 4 || parts[0] != "pbkdf2-sha256" || !int.TryParse(parts[1], out var iterations)) return false;
+        if (parts.Length != 4 || parts[0] != "pbkdf2-sha256" || !int.TryParse(parts[1], out var iterations))
+            return false;
         try
         {
             var salt = Convert.FromBase64String(parts[2]);
@@ -38,7 +40,8 @@ public sealed class PinHasher : IPinHasher
     public static bool IsValid(string? pin) => pin is { Length: 4 } && pin.All(char.IsAsciiDigit);
     public static void Validate(string pin)
     {
-        if (!IsValid(pin)) throw new ArgumentException("PIN must contain exactly four digits.", nameof(pin));
+        if (!IsValid(pin))
+            throw new ArgumentException("PIN must contain exactly four digits.", nameof(pin));
     }
 }
 
@@ -60,7 +63,8 @@ public sealed class AdministratorBootstrapService(
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        if (await credentials.ExistsAsync(cancellationToken)) return;
+        if (await credentials.ExistsAsync(cancellationToken))
+            return;
         var pin = options.Value.BootstrapPin;
         if (string.IsNullOrEmpty(pin))
             throw new InvalidOperationException("No administrator credential exists. Supply Authentication:BootstrapPin for first startup.");

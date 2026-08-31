@@ -11,26 +11,48 @@
 <PageTitle>@(movie?.Title ?? "Shared room") · Blockbuster</PageTitle>
 @if (room is null || movie is null || version is null)
 {
-    <section class="catalog-empty"><h1>Room unavailable</h1><p>This room expired or its movie version is no longer available.</p><a href="/shared">Browse active rooms</a></section>
+    <section class="catalog-empty">
+        <h1>Room unavailable</h1>
+        <p>This room expired or its movie version is no longer available.</p>
+        <a href="/shared" draggable="false">Browse active rooms</a>
+    </section>
 }
 else
 {
     <section class="player-page">
-        <a href="/shared" class="back-link">← Shared rooms</a>
+        <a href="/shared" class="back-link" draggable="false">← Shared rooms</a>
         <h1 id="main-heading" tabindex="-1">@movie.Title shared room</h1>
-        <div class="shared-heading"><div><span class="live-dot"></span><strong>@movie.Title</strong><small>Room @RoomId</small></div>
-            <span data-participants>@ParticipantLabel(room.Participants)</span></div>
+        <div class="shared-heading">
+            <div>
+                <span class="live-dot"></span>
+                <strong>@movie.Title</strong>
+                <small>Room @RoomId</small>
+            </div>
+            <span data-participants>@ParticipantLabel(room.Participants)</span>
+        </div>
         @if (!version.IsBrowserCompatible)
         {
-            <div class="compatibility-warning"><strong>This pinned version may not play in your browser.</strong><p>@version.CompatibilityExplanation</p></div>
+            <div class="compatibility-warning">
+                <strong>This pinned version may not play in your browser.</strong>
+                <p>@version.CompatibilityExplanation</p>
+            </div>
         }
-        <PlaybackSurface PlayerId="shared-player" Source="@($"/media/{version.MediaFileId}")" AccessibleTitle="@movie.Title" Shared="true" />
-        <p class="room-controller" data-controller>Join to begin. Any participant can control playback; the last server-accepted command wins.</p>
+        <PlaybackSurface
+            PlayerId="shared-player"
+            Source="@($"/media/{version.MediaFileId}")"
+            AccessibleTitle="@movie.Title"
+            Shared="true" />
+        <p class="room-controller" data-controller>
+            You are connected automatically. Any participant can control playback;
+            the last server-accepted command wins.
+        </p>
     </section>
 }
 
 @code {
-    [Parameter] public string RoomId { get; set; } = "";
+    [Parameter]
+    public string RoomId { get; set; } = string.Empty;
+
     private SharedRoomSnapshot? room;
     private MovieDetails? movie;
     private MovieVersion? version;
@@ -40,19 +62,69 @@ else
     {
         room = Rooms.GetSnapshot(RoomId);
         var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        if (room is null || !Guid.TryParse(auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var profileId)) return;
+        if (room is null
+            || !Guid.TryParse(
+                auth.User.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+                out var profileId))
+        {
+            return;
+        }
+
         movie = await MovieLibrary.GetAsync(room.MovieId, profileId);
-        version = movie?.Versions.FirstOrDefault(item => item.MediaFileId == room.MediaFileId && item.IsAvailable);
+        version = movie?.Versions.FirstOrDefault(item =>
+            item.MediaFileId == room.MediaFileId && item.IsAvailable);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || room is null || movie is null || version is null) return;
-        module = await JS.InvokeAsync<IJSObjectReference>("import", "/js/sharedPlayer.js");
-        await module.InvokeVoidAsync("initialize", "shared-player", RoomId, movie.Id, movie.Progress?.TotalSeconds ?? 0, movie.ProgressRevision,
-            new { progressIntervalMs = (int)Playback.Value.ProgressInterval.TotalMilliseconds, resumeThresholdSeconds = Playback.Value.ResumeThreshold.TotalSeconds, driftIntervalMs = (int)RoomsOptions.Value.DriftCheckInterval.TotalMilliseconds, rateCorrectionThresholdSeconds = RoomsOptions.Value.RateCorrectionThreshold.TotalSeconds, hardSeekThresholdSeconds = RoomsOptions.Value.HardSeekThreshold.TotalSeconds });
+        if (!firstRender || room is null || movie is null || version is null)
+        {
+            return;
+        }
+
+        module = await JS.InvokeAsync<IJSObjectReference>(
+            "import",
+            "/js/sharedPlayer.js");
+        await module.InvokeVoidAsync(
+            "initialize",
+            "shared-player",
+            RoomId,
+            movie.Id,
+            movie.Progress?.TotalSeconds ?? 0,
+            movie.ProgressRevision,
+            new
+            {
+                progressIntervalMs =
+                    (int)Playback.Value.ProgressInterval.TotalMilliseconds,
+                resumeThresholdSeconds =
+                    Playback.Value.ResumeThreshold.TotalSeconds,
+                driftIntervalMs =
+                    (int)RoomsOptions.Value.DriftCheckInterval.TotalMilliseconds,
+                rateCorrectionThresholdSeconds =
+                    RoomsOptions.Value.RateCorrectionThreshold.TotalSeconds,
+                hardSeekThresholdSeconds =
+                    RoomsOptions.Value.HardSeekThreshold.TotalSeconds
+            });
     }
 
-    private static string ParticipantLabel(IReadOnlyList<string> names) => names.Count == 0 ? "Waiting for viewers" : string.Join(", ", names);
-    public async ValueTask DisposeAsync() { if (module is not null) { try { await module.InvokeVoidAsync("dispose", "shared-player"); await module.DisposeAsync(); } catch (JSDisconnectedException) { } } }
+    private static string ParticipantLabel(IReadOnlyList<string> names) =>
+        names.Count == 0 ? "Waiting for viewers" : string.Join(", ", names);
+
+    public async ValueTask DisposeAsync()
+    {
+        if (module is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await module.InvokeVoidAsync("dispose", "shared-player");
+            await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
 }

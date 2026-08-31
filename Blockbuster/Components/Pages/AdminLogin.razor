@@ -11,9 +11,10 @@
         <p class="form-error" role="alert">@Error</p>
     }
     <form method="post" action="/auth/admin/login" class="admin-login-form">
+        <AntiforgeryToken />
         <label for="admin-pin">Administrator PIN</label>
-        <input id="admin-pin" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" required autofocus />
-        <button type="submit">Sign in</button>
+        <input id="admin-pin" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" type="password" required autofocus draggable="false" />
+        <button type="submit" draggable="false">Sign in</button>
     </form>
 </section>
 

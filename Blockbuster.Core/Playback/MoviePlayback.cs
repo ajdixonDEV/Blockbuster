@@ -8,7 +8,10 @@ public sealed record MovieCatalogQuery(
     int Page = 1,
     int PageSize = 24);
 
-public enum MovieSort { Title, YearDescending, RecentlyAdded }
+public enum MovieSort
+{
+    Title, YearDescending, RecentlyAdded
+}
 
 public sealed record MovieCatalogItem(
     Guid Id, string Title, int? Year, string? Overview, string? PosterUrl,
@@ -20,7 +23,7 @@ public sealed record MovieCatalogPage(
     IReadOnlyList<string> Genres, IReadOnlyList<int> Years);
 
 public sealed record MovieVersion(
-    Guid MediaFileId, string Label, string Container, string? VideoCodec,
+    Guid MediaFileId, string Quality, string FileName, string Container, string? VideoCodec,
     string? AudioCodec, int? Width, int? Height, int? AudioChannels,
     TimeSpan? Duration, long Length, DateTimeOffset LastModified,
     bool IsAvailable, bool IsBrowserCompatible, string CompatibilityExplanation);

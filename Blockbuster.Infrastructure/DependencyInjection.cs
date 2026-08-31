@@ -51,14 +51,20 @@ public static class DependencyInjection
         services.AddSingleton<IPinHasher, PinHasher>();
         services.AddSingleton<IAdministratorPinResetService, AdministratorPinService>();
         services.AddSingleton<MovieCatalogStore>();
-        services.AddSingleton<IMovieCatalogStore>(provider => provider.GetRequiredService<MovieCatalogStore>());
+        services.AddSingleton<IMovieMatchTransitionStore>(provider =>
+            provider.GetRequiredService<MovieCatalogStore>());
         services.AddSingleton<IMovieCatalogReader>(provider => provider.GetRequiredService<MovieCatalogStore>());
-        services.AddSingleton<IMovieMatchResolver, MovieMatchResolver>();
+        services.AddSingleton<MovieMatchResolver>();
+        services.AddSingleton<IMovieMatchResolver>(provider =>
+            provider.GetRequiredService<MovieMatchResolver>());
+        services.AddSingleton<IAutomaticMovieMatchPreparer>(provider =>
+            provider.GetRequiredService<MovieMatchResolver>());
         services.AddSingleton<MovieLibrary>();
         services.AddSingleton<IMovieLibrary>(provider => provider.GetRequiredService<MovieLibrary>());
         services.AddSingleton<IPlaybackProgressStore>(provider => provider.GetRequiredService<MovieLibrary>());
         services.AddSingleton<ISharedPlaybackCoordinator, InMemorySharedPlaybackCoordinator>();
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IExternalProcessRunner, ExternalProcessRunner>();
         services.AddSingleton<IMediaProbe, FfprobeMediaProbe>();
         services.AddHttpClient<IMovieMetadataProvider, TmdbMovieMetadataProvider>(client =>
         {
