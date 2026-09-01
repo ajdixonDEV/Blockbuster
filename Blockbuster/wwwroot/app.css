@@ -335,7 +335,7 @@ h2 {
   font-family: Impact, "Arial Narrow", var(--font-sans);
   font-size: clamp(2.25rem, 5vw, 4.7rem);
   font-weight: 900;
-  letter-spacing: -0.035em;
+  letter-spacing: 0.025em;
   line-height: 0.8;
   text-transform: uppercase;
   white-space: nowrap;

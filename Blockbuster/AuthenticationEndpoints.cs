@@ -58,18 +58,11 @@ internal static class AuthenticationEndpoints
             .MapGroup("/auth")
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
-        group.MapPost("/profile/select", SelectProfileAsync);
-        group
-            .MapPost(
-                "/profile/clear",
-                async (HttpContext context) => await ClearProfileAsync(context))
+        group.MapPost("/profile/select", SignInProfileAsync);
+        group.MapPost("/profile/clear", SignOutProfileAsync)
             .RequireAuthorization();
         group.MapPost("/admin/login", SignInAdministratorAsync);
-        group
-            .MapPost(
-                "/admin/logout",
-                async (HttpContext context) =>
-                    await SignOutAdministratorAsync(context))
+        group.MapPost("/admin/logout", SignOutAdministratorAsync)
             .RequireAuthorization("Administrator");
     }
 
@@ -106,7 +99,7 @@ internal static class AuthenticationEndpoints
         return "Profile";
     }
 
-    private static async Task<IResult> SelectProfileAsync(
+    private static async Task<IResult> SignInProfileAsync(
         HttpContext context,
         IProfileStore profiles,
         IPinHasher hasher)
@@ -148,10 +141,10 @@ internal static class AuthenticationEndpoints
         return Results.LocalRedirect("/movies");
     }
 
-    private static async Task<IResult> ClearProfileAsync(HttpContext context)
+    private static async Task SignOutProfileAsync(HttpContext context)
     {
         await context.SignOutAsync("Profile");
-        return Results.LocalRedirect("/profiles");
+        context.Response.Redirect("/");
     }
 
     private static async Task<IResult> SignInAdministratorAsync(
@@ -186,9 +179,9 @@ internal static class AuthenticationEndpoints
         return Results.LocalRedirect("/admin");
     }
 
-    private static async Task<IResult> SignOutAdministratorAsync(HttpContext context)
+    private static async Task SignOutAdministratorAsync(HttpContext context)
     {
         await context.SignOutAsync("Admin");
-        return Results.LocalRedirect("/admin/login");
+        context.Response.Redirect("/");
     }
 }
